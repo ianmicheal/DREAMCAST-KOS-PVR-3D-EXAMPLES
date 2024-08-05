@@ -10,8 +10,10 @@ Welcome to the KallistiOS PVR API Only Example repository!
  * emulator or a retail Dreamcast.
 ## About
 ## Examples
-[![Watch the video](http://img.youtube.com/vi/z0IkpKjiDQk/0.jpg)](http://www.youtube.com/watch?v=z0IkpKjiDQk)
 
+[![Watch the first video](http://img.youtube.com/vi/z0IkpKjiDQk/0.jpg)](http://www.youtube.com/watch?v=z0IkpKjiDQk)
+
+[![Watch the second video](http://img.youtube.com/vi/S9obbHs4Hl8/0.jpg)](http://www.youtube.com/watch?v=S9obbHs4Hl8)
 
 This repository contains examples demonstrating how to use the KallistiOS PVR API directly. It focuses solely on the PVR API, without using any additional layers such as OpenGL, SDL, or Parallax. These examples are intended to provide straightforward solutions for common tasks using the KallistiOS PVR API.
 
