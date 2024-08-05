@@ -9,6 +9,8 @@ Welcome to the KallistiOS PVR API Only Example repository!
  * and the ELF files you can turn into a CDI using BootDreams to run on a DC
  * emulator or a retail Dreamcast.
 ## About
+## Demo
+[![Watch the video](http://img.youtube.com/vi/z0IkpKjiDQk/0.jpg)](http://www.youtube.com/watch?v=z0IkpKjiDQk)
 
 This repository contains examples demonstrating how to use the KallistiOS PVR API directly. It focuses solely on the PVR API, without using any additional layers such as OpenGL, SDL, or Parallax. These examples are intended to provide straightforward solutions for common tasks using the KallistiOS PVR API.
 
