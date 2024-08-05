@@ -1,27 +1,31 @@
-/*
-######################################################################
-#           PNG ZOOM AUTO TRANSITION V1                              #
-######################################################################
-#																	 #
-#																	 #
-#								           (c)2024 from Ian Micheal  #
-######################################################################
- */
 
-// Include necessary KallistiOS (KOS) headers for Dreamcast development
-#include <kos.h>
-// Include the PNG library headers for handling PNG images
-#include <png/png.h>
-// Include the Zlib library headers for data compression and decompression
-#include <zlib/zlib.h>
-// Include the standard library headers for general-purpose functions
-#include <stdlib.h>
-// Include the assert library headers for runtime assertion checking
-#include <assert.h>
-// Include the math library headers for mathematical functions
-#include <math.h>
-// Include the boolean library headers for C99 boolean type
-#include <stdbool.h>
+/********************************************************************************************/
+/* KallistiOS Direct PVR API:2.0                                                            */
+/********************************************************************************************/
+/********************************************************************************************/
+/* Name:     pngzoom .c                                                                     */
+/* Title:    PNG ZOOM AUTO Kos Example                                                      */
+/* Author:   (c)Ian Micheal                                                                 */
+/* Created:   05/08/24                                                                      */
+/*                                                                                          */
+/* Version:  1.0                                                                            */
+/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR |                                          */
+/*                                                                                          */
+/* Description:                                                                             */
+/* The purpose of this example is to show pngzoom out then in and back out to a new image.  */
+/* Very much like demo disk or loading TRANSITION                                           */
+/* History: version 1                                                                       */
+/********************************************************************************************/
+/********************************************************************************************/
+/*                                                                                          */
+/********************************************************************************************/ 
+#include <kos.h>        /*Includes necessary KallistiOS (KOS) headers for Dreamcast development */
+#include <png/png.h>    /* PNG library headers for handling PNG images. */
+#include <zlib/zlib.h>  /* Zlib library headers for data compression and decompression.*/
+#include <stdlib.h>     /* standard library headers for general-purpose functions.*/
+#include <assert.h>     /* assert library headers for runtime assertion checking.*/
+#include <math.h>       /*Standard slower math library headers for mathematical function.*/
+#include <stdbool.h>    /* boolean library headers for C99 boolean type.*/
 
 // Declare the external ROM disk
 extern uint8 romdisk_boot[];
@@ -131,7 +135,10 @@ pvr_init_params_t params = {
     { PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_16 },
     512*1024 // Vertex buffer size 512K
 };
-
+/********************************************************************************************/
+/* main():                                                                                  */
+/*      Entry point for C code.                                                              */
+/********************************************************************************************/
 /**
  * @brief Main function of the program.
  * @return Exit status.
