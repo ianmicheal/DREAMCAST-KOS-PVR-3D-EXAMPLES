@@ -3,7 +3,7 @@
 NO LAYERS DIRECT EXAMPLES
 Welcome to the KallistiOS PVR API Only Example repository!
 ##Testing 
-- ** All have been sent using BBA to real hardware, also using DreamSDK 3.0 dev
+* All have been sent using BBA to real hardware, also using DreamSDK 3.0 dev
  * version GCC 4.7, my favorite compiler. If yours does not work, use printf to
  * find what it is getting confused by. I have videos of each running on hardware
  * and the ELF files you can turn into a CDI using BootDreams to run on a DC
