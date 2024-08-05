@@ -51,10 +51,11 @@ kos_texture_t* textures[NUM_TEXTURES] = {NULL};
 
 float cube_x = 0.0f, cube_y = 0.0f, cube_z = -0.0f;
 float xrot = 0.0f, yrot = 0.0f, xspeed = 0.0f, yspeed = 0.0f;
-/* Author: Ian Michael
+/*  Ian Michael
  * This needed alignment as it worked on DC emulators. They all allow non-aligned
  * memory reads, which is an instant crash on the SH4 CPU and the Dreamcast, as
  * they do not allow this. I fixed this with major printf and add2line debugging.
+  dRxL provided the basic function and idea that got me on track and is a MVP!!
  */
 static matrix_t perspective_mat __attribute__((aligned(32)));
 
