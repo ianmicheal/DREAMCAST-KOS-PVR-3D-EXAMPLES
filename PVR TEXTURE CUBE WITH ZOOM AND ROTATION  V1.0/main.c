@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  cube_state.pos.z = -4.0f;
+  cube_state.pos.z = 4.0f;
   cube_state.rot.x = 5.0f;
   cube_state.rot.y = 5.0f;
 
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   mat_perspective_fov_lh(45.0f * F_PI / 360.0f, 640.0f / 480.0f, 0.1f, 100.0f);
   // mat_perspective(0.0f, 0.0f, 1.0f / ftan((45.0f * F_PI / 360.0f) * 0.5f),
   // 0.1f,1.0f);
-  point_t eye = {0, 0.0001f, -16.0f};
+  point_t eye = {0, 0.0001f, 16.0f};
   point_t center = {0, 0, 0};
   vector_t up = {0, 0, 1};
   mat_lookat(&eye, &center, &up);
