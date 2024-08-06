@@ -20,7 +20,7 @@
 /*        >>>  Help and code examples and advice these people where invaluable  <<<         */
 /*     Mvp's:  dRxL with my_perspective_mat_lh and explaining to me the concepts            */
 /*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.            */
-/*     Mvp's:  Falco Opengl order rendering and code advice                                 */
+/*     Mvp's:  falcogirgis Opengl order rendering and code advice                           */
 /********************************************************************************************/ 
 
 
