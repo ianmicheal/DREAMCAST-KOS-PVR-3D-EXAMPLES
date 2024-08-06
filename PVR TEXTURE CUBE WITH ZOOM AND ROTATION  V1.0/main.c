@@ -193,7 +193,6 @@ static matrix_t perspective_matrix __attribute__((aligned(32)));
 static matrix_t view_matrix __attribute__((aligned(32)));
 
 void render_cube(void) {
-  //   printf("Entering render_cube\n");
   pvr_poly_cxt_t cxt;
   pvr_poly_hdr_t hdr;
   pvr_vertex_t *vert;
@@ -206,15 +205,13 @@ void render_cube(void) {
   // Calculate cubescale based on cube_z
   float zoom_scale = 100.0f / (-cube_state.pos.z);
 
-  // mat_load(&perspective_matrix);
-  // mat_identity();
-  mat_load(&perspective_matrix);
+  mat_load(&perspective_matrix); // mat_identity() not needed here, since we're
+																 // overwriting the matrix anyway
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.y);
   mat_scale(cubescale * zoom_scale, cubescale * zoom_scale,
             cubescale * zoom_scale);
   mat_rotate_x(cube_state.rot.x);
   mat_rotate_y(cube_state.rot.y);
-  // mat_store(&view_matrix);
 
   float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
 
@@ -225,19 +222,15 @@ void render_cube(void) {
       vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0],
                    .y = cube_vertices[cube_side_strips[i][j]][1],
                    .z = cube_vertices[cube_side_strips[i][j]][2]};
-      // mat_load(&view_matrix);
       float w = 0.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
 			w = 1.0f / w;
-			w = 1.0f;
 
       vert = pvr_dr_target(dr_state);
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
       vert->x = v.x * w + 320.0f;
       vert->y = v.y * w + 240.0f;
       vert->z = v.z * w;
-      // vert->z = min_float(65535.0f,
-      //                     max_float(0.0f, (v.z + 10.0f) / 20.0f * 65535.0f));
       vert->u = tex_coords[j][0];
       vert->v = tex_coords[j][1];
       vert->argb = side_colors[i];
@@ -245,24 +238,18 @@ void render_cube(void) {
       pvr_dr_commit(vert);
     }
   }
-
-  //  printf("Restoring model view matrix\n");
-  // mat_load(&perspective_matrix);
-  //   printf("Exiting render_cube\n");
+	pvr_dr_finish();
 }
 
 int main(int argc, char *argv[]) {
   gdb_init();
-  //  printf("Entering main\n");
   pvr_init_params_t params = {{PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16,
                                PVR_BINSIZE_0, PVR_BINSIZE_0},
                               512 * 1024};
 
-  //  printf("Initializing PVR\n");
   pvr_init(&params);
   pvr_set_bg_color(0.0f, 0.0f, 0.0f);
 
-  //  printf("Loading texture\n");
   texture = load_png_texture("/rd/crate.png");
   if (!texture) {
     printf("Failed to load texture.\n");
@@ -274,7 +261,7 @@ int main(int argc, char *argv[]) {
   cube_state.rot.y = 5.0f;
 
   mat_identity();
-  mat_perspective_fov_lh(45.0f * F_PI / 360.0f, 640.0f / 480.0f, -100.1f, 100.0f);
+  mat_perspective_fov_lh(45.0f * F_PI / 360.0f, 640.0f / 480.0f, 0.1f, 100.0f);
   // mat_perspective(0.0f, 0.0f, 1.0f / ftan((45.0f * F_PI / 360.0f) * 0.5f),
   // 0.1f,1.0f);
   point_t eye = {0, 0.0001f, -16.0f};
@@ -283,14 +270,12 @@ int main(int argc, char *argv[]) {
   mat_lookat(&eye, &center, &up);
   mat_store(&perspective_matrix);
 
-  //  printf("Entering main loop\n");
   while (1) {
     pvr_wait_ready();
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
 
     render_cube();
-
     pvr_list_finish();
     pvr_scene_finish();
 
