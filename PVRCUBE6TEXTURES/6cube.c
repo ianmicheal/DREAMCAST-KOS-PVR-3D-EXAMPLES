@@ -18,7 +18,7 @@
 /********************************************************************************************/
 /********************************************************************************************/
 /*        >>>  Help and code examples and advice these people where invaluable  <<<         */
-/*     Mvp's:  dRxL with my_perspective_mat_lh and explaining to me the concepts            */
+/*     Mvp's:  dRxL with mat_perspective_fov and explaining to me the concepts            */
 /*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.            */
 /*                                                                                          */
 /********************************************************************************************/ 
@@ -58,7 +58,7 @@ float xrot = 0.0f, yrot = 0.0f, xspeed = 0.0f, yspeed = 0.0f;
  */
 static matrix_t perspective_mat __attribute__((aligned(32)));
 
-void my_perspective_mat_lh(float fov, float aspect, float zNear, float zFar) {
+void mat_perspective_fov(float fov, float aspect, float zNear, float zFar) {
     float f = 1.0f / ftan(fov * 0.5f * F_PI / 180.0f);
     float local_mat[4][4] __attribute__((aligned(32))) = {
         {f / aspect, 0.0f, 0.0f, 0.0f},
@@ -155,7 +155,7 @@ void render_cube(void) {
     matrix_t model_view_matrix __attribute__((aligned(32)));
 
     mat_identity();
-    my_perspective_mat_lh(45.0f, 640.0f / 480.0f, 0.1f, 100.0f);
+    mat_perspective_fov(45.0f, 640.0f / 480.0f, 0.1f, 100.0f);
 
     point_t eye = {0, 0, 0};
     point_t center = {0, 0, -1};
