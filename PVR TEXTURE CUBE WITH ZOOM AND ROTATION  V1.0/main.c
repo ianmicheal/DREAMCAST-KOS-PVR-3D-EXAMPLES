@@ -34,14 +34,11 @@
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
 #include <dc/pvr.h> /* PVR library headers for PowerVR graphics chip functions */
 #include <kos.h> /* Includes necessary KallistiOS (KOS) headers for Dreamcast development */
-#include <math.h> /* Standard slower math library headers for mathematical functions */
 #include <png/png.h> /* PNG library headers for handling PNG images */
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
 
-extern uint8 romdisk[];
-KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
-KOS_INIT_ROMDISK(romdisk);
+#define ABS(x) ((x) < 0 ? -(x) : (x))
 
 typedef struct {
   pvr_ptr_t ptr;
@@ -49,7 +46,18 @@ typedef struct {
   uint32 fmt;
 } kos_texture_t;
 
+typedef void (*perspectiveFun)(float, float, float, float);
+
+extern uint8 romdisk[];
+KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
+KOS_INIT_ROMDISK(romdisk);
+
+static matrix_t perspective_matrix __attribute__((aligned(32)));
+static const float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
+static const float zoom_speed = 0.30f;
 static const float cubescale = 1.0f;
+static kos_texture_t *texture = NULL;
+
 /**  Cube vertices and side strips
      7*------------*5
      /|           /|
@@ -80,7 +88,7 @@ static const uint8_t cube_side_strips[6][4] = {
 };
 
 static const uint32_t side_colors[6] = {
-    // format: 0xAARRGGBB
+    // format:
     0xFFFF0000, // Red
     0xFF00FF00, // Green
     0xFF0000FF, // Blue
@@ -100,14 +108,10 @@ static struct cube {
     float x, y;
   } speed;
 } cube_state;
-// float cube_x = 0.0f, cube_y = 0.0f, cube_z = -0.0f;
-// float xrot = 0.0f, yrot = 0.0f, xspeed = 0.0f, yspeed = 0.0f;
-
-kos_texture_t *texture = NULL;
 
 // Ensure perspective_mat is aligned to a 32-byte boundary
 static matrix_t perspective_mat __attribute__((aligned(32))) = {{0.0f}};
-void mat_perspective_fov_rh(float rad, float aspect, float zNear, float zFar) {
+void perspectiveFovRH_NO(float rad, float aspect, float zNear, float zFar) {
   float const h = fcos(0.5 * rad) / fsin(0.5 * rad);
   float const w = h * aspect;
   perspective_mat[0][0] = w;
@@ -117,7 +121,8 @@ void mat_perspective_fov_rh(float rad, float aspect, float zNear, float zFar) {
   perspective_mat[3][2] = -(2.0 * zFar * zNear) / (zFar - zNear);
   mat_apply(&perspective_mat);
 }
-void mat_perspective_fov_lh(float rad, float aspect, float zNear, float zFar) {
+
+void perspectiveFovLH_NO(float rad, float aspect, float zNear, float zFar) {
   float const h = fcos(0.5 * rad) / fsin(0.5 * rad);
   float const w = h * aspect;
   perspective_mat[0][0] = w;
@@ -128,7 +133,7 @@ void mat_perspective_fov_lh(float rad, float aspect, float zNear, float zFar) {
   mat_apply(&perspective_mat);
 }
 
-void infinitePerspectiveRH(float fovy, float aspect, float zNear, float zFar) {
+void infinitePerspectiveRH(float fovy, float aspect, float zNear, float unused) {
   float const range = ftan(fovy * 0.5f) * zNear;
   float const left = -range * aspect;
   float const right = range * aspect;
@@ -143,9 +148,20 @@ void infinitePerspectiveRH(float fovy, float aspect, float zNear, float zFar) {
   mat_apply(&perspective_mat);
 }
 
-static inline float min_float(float a, float b) { return a < b ? a : b; }
+void infinitePerspectiveLH(float fovy, float aspect, float zNear, float unused) {
+  float const range = ftan(fovy * 0.5f) * zNear;
+  float const left = -range * aspect;
+  float const right = range * aspect;
+  float const bottom = -range;
+  float const top = range;
 
-static inline float max_float(float a, float b) { return a > b ? a : b; }
+  perspective_mat[0][0] = (2.0f * zNear) / (right - left);
+  perspective_mat[1][1] = (2.0 * zNear) / (top - bottom);
+  perspective_mat[2][2] = 1.0f;
+  perspective_mat[2][3] = 1.0f;
+  perspective_mat[3][2] = -2.0f * zNear;
+  mat_apply(&perspective_mat);
+}
 
 kos_texture_t *load_png_texture(const char *filename) {
   //   printf("Entering load_png_texture\n");
@@ -186,11 +202,7 @@ void init_poly_context(pvr_poly_cxt_t *cxt) {
   pvr_poly_cxt_txr(cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_ARGB4444, texture->w,
                    texture->h, texture->ptr, PVR_FILTER_BILINEAR);
   cxt->gen.culling = PVR_CULLING_CCW;
-  //   printf("Exiting init_poly_context\n");
 }
-
-static matrix_t perspective_matrix __attribute__((aligned(32)));
-static matrix_t view_matrix __attribute__((aligned(32)));
 
 void render_cube(void) {
   pvr_poly_cxt_t cxt;
@@ -203,17 +215,17 @@ void render_cube(void) {
   pvr_prim(&hdr, sizeof(hdr));
 
   // Calculate cubescale based on cube_z
-  float zoom_scale = 100.0f / (-cube_state.pos.z);
+  // float model_scale = 50.0f;
 
   mat_load(&perspective_matrix); // mat_identity() not needed here, since we're
-																 // overwriting the matrix anyway
+                                 // overwriting the internal matrix registers
+                                 // with mat_load
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.y);
-  mat_scale(cubescale * zoom_scale, cubescale * zoom_scale,
-            cubescale * zoom_scale);
+  const float model_scale = 100.0f;
+  mat_scale(cubescale * model_scale, cubescale * model_scale,
+            cubescale * model_scale);
   mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
-
-  float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
+  mat_rotate_y(cube_state.rot.z);
 
   pvr_dr_init(&dr_state);
   // Render all six quads
@@ -221,13 +233,14 @@ void render_cube(void) {
     for (int j = 0; j < 4; j++) {
       vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0],
                    .y = cube_vertices[cube_side_strips[i][j]][1],
-                   .z = cube_vertices[cube_side_strips[i][j]][2]};
-      float w = 0.0f;
+                   .z = cube_vertices[cube_side_strips[i][j]][2] - cube_state.pos.z};
+      float w = 1.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
-			w = 1.0f / w;
+      w = 1.0f / w;
 
       vert = pvr_dr_target(dr_state);
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+
       vert->x = v.x * w + 320.0f;
       vert->y = v.y * w + 240.0f;
       vert->z = v.z * w;
@@ -238,7 +251,17 @@ void render_cube(void) {
       pvr_dr_commit(vert);
     }
   }
-	pvr_dr_finish();
+  pvr_dr_finish();
+}
+
+void set_perspective_fun(perspectiveFun perfun) {
+  mat_identity();
+  perfun(90.0f * F_PI / 360.0f, 640.0f / 480.0f, 0.1f, 100.0f);
+  point_t eye = {0, 0.0001f, 100.0f};
+  point_t center = {0, 0, 0};
+  vector_t up = {0, 0, 1};
+  mat_lookat(&eye, &center, &up);
+  mat_store(&perspective_matrix);
 }
 
 int main(int argc, char *argv[]) {
@@ -256,19 +279,11 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  cube_state.pos.z = 4.0f;
+  cube_state.pos.z = 0.0f;
   cube_state.rot.x = 5.0f;
   cube_state.rot.y = 5.0f;
 
-  mat_identity();
-  mat_perspective_fov_lh(45.0f * F_PI / 360.0f, 640.0f / 480.0f, 0.1f, 100.0f);
-  // mat_perspective(0.0f, 0.0f, 1.0f / ftan((45.0f * F_PI / 360.0f) * 0.5f),
-  // 0.1f,1.0f);
-  point_t eye = {0, 0.0001f, 16.0f};
-  point_t center = {0, 0, 0};
-  vector_t up = {0, 0, 1};
-  mat_lookat(&eye, &center, &up);
-  mat_store(&perspective_matrix);
+  set_perspective_fun(infinitePerspectiveLH);
 
   while (1) {
     pvr_wait_ready();
@@ -288,9 +303,9 @@ int main(int argc, char *argv[]) {
     cube_state.speed.y *= 0.99f;
 
     // If speed is very low, set it to zero to prevent unwanted rotation
-    if (fabs(cube_state.speed.x) < 0.0001f)
+    if (ABS(cube_state.speed.x) < 0.0001f)
       cube_state.speed.x = 0.0f;
-    if (fabs(cube_state.speed.y) < 0.0001f)
+    if (ABS(cube_state.speed.y) < 0.0001f)
       cube_state.speed.x = 0.0f;
 
     MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
@@ -308,12 +323,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Trigger handling for zooming
-    float zoom_speed = 0.30f;
     if (state->ltrig > 16) { // Left trigger to zoom out
       cube_state.pos.z -= (state->ltrig / 255.0f) * zoom_speed;
+      printf("cube_state.pos.z. = %f\n", cube_state.pos.z);
     }
     if (state->rtrig > 16) { // Right trigger to zoom in
       cube_state.pos.z += (state->rtrig / 255.0f) * zoom_speed;
+      printf("cube_state.pos.z. = %f\n", cube_state.pos.z);
     }
 
     // Limit the zoom range
@@ -321,8 +337,6 @@ int main(int argc, char *argv[]) {
       cube_state.pos.x = -10.0f; // Farther away
     if (cube_state.pos.x > -0.5f)
       cube_state.pos.x = -0.5f; // Closer to the screen
-
-    printf("cube_state.pos.z. = %f\n", cube_state.pos.z);
 
     // Button controls for rotation speed
     if (state->buttons & CONT_X)
@@ -333,6 +347,23 @@ int main(int argc, char *argv[]) {
       cube_state.speed.y += 0.001f;
     if (state->buttons & CONT_B)
       cube_state.speed.y -= 0.001f;
+    if (state->buttons & CONT_DPAD_UP) {
+      printf("switching to perspectiveFovRH_NO\n");
+      set_perspective_fun(perspectiveFovRH_NO);
+    }
+    if (state->buttons & CONT_DPAD_DOWN) {
+      printf("switching to perspectiveFovLH_NO\n");
+      set_perspective_fun(perspectiveFovLH_NO);
+    }
+    if (state->buttons & CONT_DPAD_RIGHT) {
+      printf("switching to infinitePerspectiveRH\n");
+      set_perspective_fun(infinitePerspectiveRH);
+    }
+    if (state->buttons & CONT_DPAD_LEFT) {
+      printf("switching to infinitePerspectiveLH\n");
+      set_perspective_fun(infinitePerspectiveLH);
+    }
+
     MAPLE_FOREACH_END()
   }
 
