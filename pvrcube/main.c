@@ -56,7 +56,7 @@ static matrix_t perspective_matrix __attribute__((aligned(32)));
 static const float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
 static const float zoom_speed = 0.30f;
 static const float cubescale = 1.0f;
-static kos_texture_t *texture = NULL;
+static kos_texture_t *texture;
 
 /**  Cube vertices and side strips
      7*------------*5
@@ -102,7 +102,7 @@ static struct cube {
     float x, y, z;
   } pos;
   struct {
-    float x, y;
+    float x, z;
   } rot;
   struct {
     float x, y;
@@ -133,7 +133,8 @@ void perspectiveFovLH_NO(float rad, float aspect, float zNear, float zFar) {
   mat_apply(&perspective_mat);
 }
 
-void infinitePerspectiveRH(float fovy, float aspect, float zNear, float unused) {
+void infinitePerspectiveRH(float fovy, float aspect, float zNear,
+                           float unused) {
   float const range = ftan(fovy * 0.5f) * zNear;
   float const left = -range * aspect;
   float const right = range * aspect;
@@ -148,7 +149,8 @@ void infinitePerspectiveRH(float fovy, float aspect, float zNear, float unused) 
   mat_apply(&perspective_mat);
 }
 
-void infinitePerspectiveLH(float fovy, float aspect, float zNear, float unused) {
+void infinitePerspectiveLH(float fovy, float aspect, float zNear,
+                           float unused) {
   float const range = ftan(fovy * 0.5f) * zNear;
   float const left = -range * aspect;
   float const right = range * aspect;
@@ -215,13 +217,12 @@ void render_cube(void) {
   pvr_prim(&hdr, sizeof(hdr));
 
   // Calculate cubescale based on cube_z
-  // float model_scale = 50.0f;
 
   mat_load(&perspective_matrix); // mat_identity() not needed here, since we're
                                  // overwriting the internal matrix registers
                                  // with mat_load
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.y);
-  const float model_scale = 100.0f;
+  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+  const float model_scale = 50.0f;
   mat_scale(cubescale * model_scale, cubescale * model_scale,
             cubescale * model_scale);
   mat_rotate_x(cube_state.rot.x);
@@ -233,14 +234,14 @@ void render_cube(void) {
     for (int j = 0; j < 4; j++) {
       vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0],
                    .y = cube_vertices[cube_side_strips[i][j]][1],
-                   .z = cube_vertices[cube_side_strips[i][j]][2] - cube_state.pos.z};
+                   .z = cube_vertices[cube_side_strips[i][j]][2]};
       float w = 1.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
-      w = 1.0f / w;
 
       vert = pvr_dr_target(dr_state);
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
 
+      w = 1.0f / w;
       vert->x = v.x * w + 320.0f;
       vert->y = v.y * w + 240.0f;
       vert->z = v.z * w;
@@ -254,10 +255,10 @@ void render_cube(void) {
   pvr_dr_finish();
 }
 
-void set_perspective_fun(perspectiveFun perfun) {
+void set_perspective(perspectiveFun perfun) {
   mat_identity();
-  perfun(90.0f * F_PI / 360.0f, 640.0f / 480.0f, 0.1f, 100.0f);
-  point_t eye = {0, 0.0001f, 100.0f};
+  perfun(120.0f * F_PI / 360.0f, 640 / 480, 0.1f, 100);
+  point_t eye = {0, 0.0001, 30};
   point_t center = {0, 0, 0};
   vector_t up = {0, 0, 1};
   mat_lookat(&eye, &center, &up);
@@ -271,19 +272,19 @@ int main(int argc, char *argv[]) {
                               512 * 1024};
 
   pvr_init(&params);
-  pvr_set_bg_color(0.0f, 0.0f, 0.0f);
+  pvr_set_bg_color(0, 0, 0);
 
-  texture = load_png_texture("/rd/crate.png");
+  texture = load_png_texture("/rd/dc.png");
   if (!texture) {
     printf("Failed to load texture.\n");
     return -1;
   }
 
-  cube_state.pos.z = 0.0f;
-  cube_state.rot.x = 5.0f;
-  cube_state.rot.y = 5.0f;
+  cube_state.pos.z = 0;
+  cube_state.rot.x = 5;
+  cube_state.rot.z = 5;
 
-  set_perspective_fun(infinitePerspectiveLH);
+  set_perspective(infinitePerspectiveRH);
 
   while (1) {
     pvr_wait_ready();
@@ -296,7 +297,7 @@ int main(int argc, char *argv[]) {
 
     // Apply rotation
     cube_state.rot.x += cube_state.speed.x;
-    cube_state.rot.y += cube_state.speed.y;
+    cube_state.rot.z += cube_state.speed.y;
 
     // Apply friction
     cube_state.speed.x *= 0.99f;
@@ -304,9 +305,9 @@ int main(int argc, char *argv[]) {
 
     // If speed is very low, set it to zero to prevent unwanted rotation
     if (ABS(cube_state.speed.x) < 0.0001f)
-      cube_state.speed.x = 0.0f;
+      cube_state.speed.x = 0;
     if (ABS(cube_state.speed.y) < 0.0001f)
-      cube_state.speed.x = 0.0f;
+      cube_state.speed.x = 0;
 
     MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
     if (state->buttons & CONT_START)
@@ -318,7 +319,7 @@ int main(int argc, char *argv[]) {
           (state->joyx / 32768.0f) * 1000.5f; // Increased sensitivity
     }
     if (abs(state->joyy) > 16) {
-      cube_state.pos.x -= (state->joyy / 32768.0f) *
+      cube_state.pos.y -= (state->joyy / 32768.0f) *
                           1000.5f; // Increased sensitivity and inverted Y
     }
 
@@ -333,10 +334,10 @@ int main(int argc, char *argv[]) {
     }
 
     // Limit the zoom range
-    if (cube_state.pos.x < -10.0f)
-      cube_state.pos.x = -10.0f; // Farther away
-    if (cube_state.pos.x > -0.5f)
-      cube_state.pos.x = -0.5f; // Closer to the screen
+    if (cube_state.pos.z < -10.0f)
+      cube_state.pos.z = -10.0f; // Farther away
+    if (cube_state.pos.z > -0.5f)
+      cube_state.pos.z = -0.5f; // Closer to the screen
 
     // Button controls for rotation speed
     if (state->buttons & CONT_X)
@@ -349,19 +350,19 @@ int main(int argc, char *argv[]) {
       cube_state.speed.y -= 0.001f;
     if (state->buttons & CONT_DPAD_UP) {
       printf("switching to perspectiveFovRH_NO\n");
-      set_perspective_fun(perspectiveFovRH_NO);
+      set_perspective(perspectiveFovRH_NO);
     }
     if (state->buttons & CONT_DPAD_DOWN) {
       printf("switching to perspectiveFovLH_NO\n");
-      set_perspective_fun(perspectiveFovLH_NO);
+      set_perspective(perspectiveFovLH_NO);
     }
     if (state->buttons & CONT_DPAD_RIGHT) {
       printf("switching to infinitePerspectiveRH\n");
-      set_perspective_fun(infinitePerspectiveRH);
+      set_perspective(infinitePerspectiveRH);
     }
     if (state->buttons & CONT_DPAD_LEFT) {
       printf("switching to infinitePerspectiveLH\n");
-      set_perspective_fun(infinitePerspectiveLH);
+      set_perspective(infinitePerspectiveLH);
     }
 
     MAPLE_FOREACH_END()
