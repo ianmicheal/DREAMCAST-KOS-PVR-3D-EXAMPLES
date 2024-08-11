@@ -21,7 +21,7 @@
 #/*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.            */
 #/*                                                                                          */
 #/********************************************************************************************/ 
-KOS_CFLAGS+= -g -std=c99 
+KOS_CFLAGS+= -g -std=c99 -Og
 TARGET = pvrcube.elf
 OBJS = main.o 
 
