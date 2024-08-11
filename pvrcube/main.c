@@ -68,15 +68,16 @@ static kos_texture_t *texture;
    I /          I /
    I/           I/
   0*============*2          */
-static const float cube_vertices[8][3] = {
-    {-cubescale, -cubescale, +cubescale}, // 0
-    {-cubescale, +cubescale, +cubescale}, // 1
-    {+cubescale, -cubescale, +cubescale}, // 2
-    {+cubescale, +cubescale, +cubescale}, // 3
-    {+cubescale, -cubescale, -cubescale}, // 4
-    {+cubescale, +cubescale, -cubescale}, // 5
-    {-cubescale, -cubescale, -cubescale}, // 6
-    {-cubescale, +cubescale, -cubescale}  // 7
+static const vec3f_t cube_vertices[8] = {
+
+    {.x = -cubescale, .y = -cubescale, .z = +cubescale}, // 0
+    {.x = -cubescale, .y = +cubescale, .z = +cubescale}, // 1
+    {.x = +cubescale, .y = -cubescale, .z = +cubescale}, // 2
+    {.x = +cubescale, .y = +cubescale, .z = +cubescale}, // 3
+    {.x = +cubescale, .y = -cubescale, .z = -cubescale}, // 4
+    {.x = +cubescale, .y = +cubescale, .z = -cubescale}, // 5
+    {.x = -cubescale, .y = -cubescale, .z = -cubescale}, // 6
+    {.x = -cubescale, .y = +cubescale, .z = -cubescale}  // 7
 };
 static const uint8_t cube_side_strips[6][4] = {
     {0, 1, 2, 3}, // Front, 0->1->2 & 2->1->3
@@ -218,33 +219,51 @@ void render_cube(void) {
 
   // Calculate cubescale based on cube_z
 
-  mat_load(&perspective_matrix); // mat_identity() not needed here, since we're
-                                 // overwriting the internal matrix registers
-                                 // with mat_load
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  const float model_scale = 50.0f;
-  mat_scale(cubescale * model_scale, cubescale * model_scale,
-            cubescale * model_scale);
-  mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.z);
-
   pvr_dr_init(&dr_state);
   // Render all six quads
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 4; j++) {
-      vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0],
-                   .y = cube_vertices[cube_side_strips[i][j]][1],
-                   .z = cube_vertices[cube_side_strips[i][j]][2]};
+      mat_identity();
+      // mat_load(&perspective_matrix); // mat_identity() not needed here, since
+      //                                // we're overwriting the internal matrix
+      //                                // registers with mat_load
+
+      mat_identity();
+      infinitePerspectiveRH(45.0f * F_PI / 360.0f, 640 / 480, -100, 100);
+      vec3f_t eye = {0, 0.0001, cube_state.pos.z};
+      vec3f_t center = {0, 0, 0};
+      vec3f_t up = {0, 0, 1};
+      mat_lookat(&eye, &center, &up);
+
+      mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+      const float model_scale = 50.0f;
+      mat_scale(cubescale * model_scale, cubescale * model_scale,
+                cubescale * model_scale);
+      mat_rotate_x(cube_state.rot.x);
+      mat_rotate_y(cube_state.rot.z);
+
+      // vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0] +
+      // cube_state.pos.x,
+      //              .y = cube_vertices[cube_side_strips[i][j]][1] +
+      //              cube_state.pos.y, .z =
+      //              cube_vertices[cube_side_strips[i][j]][2] +
+      //              cube_state.pos.z};
+
+      vec3f_t v = cube_vertices[cube_side_strips[i][j]];
       float w = 1.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
+
+      // mat_trans_single4(v.x, v.y, v.z, w);
 
       vert = pvr_dr_target(dr_state);
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
 
       w = 1.0f / w;
+      // w = 1;
       vert->x = v.x * w + 320.0f;
       vert->y = v.y * w + 240.0f;
-      vert->z = v.z * w;
+
+      vert->z = w;
       vert->u = tex_coords[j][0];
       vert->v = tex_coords[j][1];
       vert->argb = side_colors[i];
@@ -258,9 +277,9 @@ void render_cube(void) {
 void set_perspective(perspectiveFun perfun) {
   mat_identity();
   perfun(120.0f * F_PI / 360.0f, 640 / 480, 0.1f, 100);
-  point_t eye = {0, 0.0001, 30};
-  point_t center = {0, 0, 0};
-  vector_t up = {0, 0, 1};
+  vec3f_t eye = {0, 0.0001, 30};
+  vec3f_t center = {0, 0, 0};
+  vec3f_t up = {0, 0, 1};
   mat_lookat(&eye, &center, &up);
   mat_store(&perspective_matrix);
 }
@@ -287,14 +306,17 @@ int main(int argc, char *argv[]) {
   set_perspective(infinitePerspectiveRH);
 
   while (1) {
+    vid_border_color(0, 255, 0);
     pvr_wait_ready();
+    vid_border_color(0, 0, 255);
+
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
 
     render_cube();
     pvr_list_finish();
     pvr_scene_finish();
-
+    vid_border_color(255, 0, 0);
     // Apply rotation
     cube_state.rot.x += cube_state.speed.x;
     cube_state.rot.z += cube_state.speed.y;
@@ -315,12 +337,14 @@ int main(int argc, char *argv[]) {
 
     // Analog stick for X and Y movement
     if (abs(state->joyx) > 16) {
-      cube_state.pos.x +=
+      cube_state.pos.x -=
           (state->joyx / 32768.0f) * 1000.5f; // Increased sensitivity
+      printf("cube_state.pos.x = %f\n", cube_state.pos.x);
     }
     if (abs(state->joyy) > 16) {
       cube_state.pos.y -= (state->joyy / 32768.0f) *
                           1000.5f; // Increased sensitivity and inverted Y
+      printf("cube_state.pos.y = %f\n", cube_state.pos.y);
     }
 
     // Trigger handling for zooming
@@ -336,8 +360,8 @@ int main(int argc, char *argv[]) {
     // Limit the zoom range
     if (cube_state.pos.z < -10.0f)
       cube_state.pos.z = -10.0f; // Farther away
-    if (cube_state.pos.z > -0.5f)
-      cube_state.pos.z = -0.5f; // Closer to the screen
+    if (cube_state.pos.z > 5.0f)
+      cube_state.pos.z = 5.0f; // Closer to the screen
 
     // Button controls for rotation speed
     if (state->buttons & CONT_X)
