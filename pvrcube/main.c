@@ -116,6 +116,9 @@ static struct cube {
   } speed;
 } cube_state = {0};
 
+static fovy = 45.0f;
+
+
 kos_texture_t *load_png_texture(const char *filename) {
   //   printf("Entering load_png_texture\n");
   kos_texture_t *texture;
@@ -157,35 +160,6 @@ void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.culling = PVR_CULLING_CCW;
 }
 
-void printcube() {
-  printf("     7*------------*5\n"
-         "     /|           /|\n"
-         "    / |          / |\n"
-         "  1*============*3 |\n"
-         "   I  |         I  |\n"
-         "   I 6*---------I--*4\n"
-         "   I /          I /\n"
-         "   I/           I/\n"
-         "  0*============*2\n\n"
-         "0: %8.2f, %8.2f, %8.2f\n"
-         "1: %8.2f, %8.2f, %8.2f\n"
-         "2: %8.2f, %8.2f, %8.2f\n"
-         "3: %8.2f, %8.2f, %8.2f\n"
-         "4: %8.2f, %8.2f, %8.2f\n"
-         "5: %8.2f, %8.2f, %8.2f\n"
-         "6: %8.2f, %8.2f, %8.2f\n"
-         "7: %8.2f, %8.2f, %8.2f\n",
-         cube_vertices[0].x, cube_vertices[0].y, cube_vertices[0].z,
-         cube_vertices[1].x, cube_vertices[1].y, cube_vertices[1].z,
-         cube_vertices[2].x, cube_vertices[2].y, cube_vertices[2].z,
-         cube_vertices[3].x, cube_vertices[3].y, cube_vertices[3].z,
-         cube_vertices[4].x, cube_vertices[4].y, cube_vertices[4].z,
-         cube_vertices[5].x, cube_vertices[5].y, cube_vertices[5].z,
-         cube_vertices[6].x, cube_vertices[6].y, cube_vertices[6].z,
-         cube_vertices[7].x, cube_vertices[7].y, cube_vertices[7].z
-
-  );
-}
 
 static matrix_t prntmat __attribute__((aligned(32))) = {{0.0f}};
 void printmatrix() {
@@ -215,7 +189,7 @@ void render_cube(void) {
   pvr_dr_init(&dr_state);
   // Render all six quads
   mat_identity();
-  float radians = 45.0f * F_PI / 180.0f;
+  float radians = fovy * F_PI / 180.0f;
   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
   mat_perspective(320.0f, 240.0f, cot_fovy_2, -20.0f, 20.0f);
 
@@ -342,12 +316,18 @@ int main(int argc, char *argv[]) {
       cube_state.speed.y += 0.001f;
     if (state->buttons & CONT_B)
       cube_state.speed.y -= 0.001f;
-    if (state->buttons & CONT_DPAD_UP) {
+    if (state->buttons & CONT_DPAD_LEFT) {
       cube_state = (struct cube){0};
       cube_state.pos.z = 1.0f;
+      fovy = 45.0f;
     }
     if (state->buttons & CONT_DPAD_DOWN) {
-      printcube();
+      fovy -= 1.0f;
+      printf("fovy = %f\n", fovy);
+    }
+    if (state->buttons & CONT_DPAD_UP) {
+      fovy += 1.0f;
+      printf("fovy = %f\n", fovy);
     }
 
     MAPLE_FOREACH_END()
