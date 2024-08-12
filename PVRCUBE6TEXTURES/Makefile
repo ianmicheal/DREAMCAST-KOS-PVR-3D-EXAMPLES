@@ -52,3 +52,6 @@ run: $(TARGET)
 dist:
 	rm -f $(OBJS) romdisk.o romdisk.img
 	$(KOS_STRIP) $(TARGET)
+
+clean: 
+	rm *.o *.elf romdisk.img  

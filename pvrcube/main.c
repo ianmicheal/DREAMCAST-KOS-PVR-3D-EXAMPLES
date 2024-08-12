@@ -103,7 +103,7 @@ static struct cube {
     float x, y, z;
   } pos;
   struct {
-    float x, z;
+    float x, y;
   } rot;
   struct {
     float x, y;
@@ -207,6 +207,33 @@ void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.culling = PVR_CULLING_CCW;
 }
 
+static matrix_t mat = {{0.0f}};
+void printmatrix() {
+  mat_store(&mat);
+  printf("-------------------------------------------------\n");
+  for (int i = 0; i < 4; i++) {
+    printf("|%9.4f |%9.4f |%9.4f |%9.4f |\n", mat[i][0], mat[i][1], mat[i][2],
+           mat[i][3]);
+  }
+  printf("-------------------------------------------------\n");
+}
+
+const float model_scale = 0.1f;
+
+static perspectiveFun currentPerspective = NULL;
+void set_perspective(perspectiveFun perfun) {
+  currentPerspective = perfun;
+  mat_identity();
+
+  currentPerspective(45.0f * F_PI / 180.0f, 640.0f / 480, -2 * model_scale,
+                     2 * model_scale);
+  printmatrix();
+  vec3f_t eye = {0, 0.0001, cube_state.pos.z};
+  vec3f_t center = {0, 0, 0};
+  vec3f_t up = {0, 0, 1};
+  mat_lookat(&eye, &center, &up);
+  mat_store(&perspective_matrix);
+}
 void render_cube(void) {
   pvr_poly_cxt_t cxt;
   pvr_poly_hdr_t hdr;
@@ -221,49 +248,38 @@ void render_cube(void) {
 
   pvr_dr_init(&dr_state);
   // Render all six quads
+  mat_identity();
+  float half_radians =  45.0f * F_PI / 180.0f;
+  float fcot = 0.5f/ftan(half_radians);
+  mat_perspective(320.0f, 240.0, fcot, -20.0f, 20.0f);
+
+  vec3f_t eye = {0, 0.0001, 0.0f};
+  vec3f_t center = {0, 0, 0};
+  vec3f_t up = {0, 0, -1.0f};
+  mat_lookat(&eye, &center, &up);
+
+  // printmatrix();
+
+  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+  // printmatrix();
+  mat_scale(model_scale, model_scale, model_scale);
+
+  mat_rotate_z(cube_state.rot.x);
+  mat_rotate_y(cube_state.rot.y);
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 4; j++) {
-      mat_identity();
-      // mat_load(&perspective_matrix); // mat_identity() not needed here, since
-      //                                // we're overwriting the internal matrix
-      //                                // registers with mat_load
+      vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]].x,
+                   .y = cube_vertices[cube_side_strips[i][j]].y,
+                   .z = cube_vertices[cube_side_strips[i][j]].z};
 
-      mat_identity();
-      infinitePerspectiveRH(45.0f * F_PI / 360.0f, 640 / 480, -100, 100);
-      vec3f_t eye = {0, 0.0001, cube_state.pos.z};
-      vec3f_t center = {0, 0, 0};
-      vec3f_t up = {0, 0, 1};
-      mat_lookat(&eye, &center, &up);
-
-      mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-      const float model_scale = 50.0f;
-      mat_scale(cubescale * model_scale, cubescale * model_scale,
-                cubescale * model_scale);
-      mat_rotate_x(cube_state.rot.x);
-      mat_rotate_y(cube_state.rot.z);
-
-      // vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]][0] +
-      // cube_state.pos.x,
-      //              .y = cube_vertices[cube_side_strips[i][j]][1] +
-      //              cube_state.pos.y, .z =
-      //              cube_vertices[cube_side_strips[i][j]][2] +
-      //              cube_state.pos.z};
-
-      vec3f_t v = cube_vertices[cube_side_strips[i][j]];
       float w = 1.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
-
-      // mat_trans_single4(v.x, v.y, v.z, w);
-
+      w = 1.0f / w;
       vert = pvr_dr_target(dr_state);
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
-
-      w = 1.0f / w;
-      // w = 1;
-      vert->x = v.x * w + 320.0f;
-      vert->y = v.y * w + 240.0f;
-
-      vert->z = w;
+      vert->x = v.x * w;
+      vert->y = v.y * w;
+      vert->z = v.z * w;
       vert->u = tex_coords[j][0];
       vert->v = tex_coords[j][1];
       vert->argb = side_colors[i];
@@ -272,16 +288,6 @@ void render_cube(void) {
     }
   }
   pvr_dr_finish();
-}
-
-void set_perspective(perspectiveFun perfun) {
-  mat_identity();
-  perfun(120.0f * F_PI / 360.0f, 640 / 480, 0.1f, 100);
-  vec3f_t eye = {0, 0.0001, 30};
-  vec3f_t center = {0, 0, 0};
-  vec3f_t up = {0, 0, 1};
-  mat_lookat(&eye, &center, &up);
-  mat_store(&perspective_matrix);
 }
 
 int main(int argc, char *argv[]) {
@@ -300,10 +306,10 @@ int main(int argc, char *argv[]) {
   }
 
   cube_state.pos.z = 0;
-  cube_state.rot.x = 5;
-  cube_state.rot.z = 5;
+  cube_state.rot.x = 0;
+  cube_state.rot.y = 5;
 
-  set_perspective(infinitePerspectiveRH);
+  set_perspective(perspectiveFovLH_NO);
 
   while (1) {
     vid_border_color(0, 255, 0);
@@ -319,7 +325,7 @@ int main(int argc, char *argv[]) {
     vid_border_color(255, 0, 0);
     // Apply rotation
     cube_state.rot.x += cube_state.speed.x;
-    cube_state.rot.z += cube_state.speed.y;
+    cube_state.rot.y += cube_state.speed.y;
 
     // Apply friction
     cube_state.speed.x *= 0.99f;
@@ -338,12 +344,12 @@ int main(int argc, char *argv[]) {
     // Analog stick for X and Y movement
     if (abs(state->joyx) > 16) {
       cube_state.pos.x -=
-          (state->joyx / 32768.0f) * 1000.5f; // Increased sensitivity
+          (state->joyx / 32768.0f) * 10.5f; // Increased sensitivity
       printf("cube_state.pos.x = %f\n", cube_state.pos.x);
     }
     if (abs(state->joyy) > 16) {
       cube_state.pos.y -= (state->joyy / 32768.0f) *
-                          1000.5f; // Increased sensitivity and inverted Y
+                          10.5f; // Increased sensitivity and inverted Y
       printf("cube_state.pos.y = %f\n", cube_state.pos.y);
     }
 
@@ -360,8 +366,8 @@ int main(int argc, char *argv[]) {
     // Limit the zoom range
     if (cube_state.pos.z < -10.0f)
       cube_state.pos.z = -10.0f; // Farther away
-    if (cube_state.pos.z > 5.0f)
-      cube_state.pos.z = 5.0f; // Closer to the screen
+    if (cube_state.pos.z > 10.0f)
+      cube_state.pos.z = 10.0f; // Closer to the screen
 
     // Button controls for rotation speed
     if (state->buttons & CONT_X)
@@ -373,8 +379,13 @@ int main(int argc, char *argv[]) {
     if (state->buttons & CONT_B)
       cube_state.speed.y -= 0.001f;
     if (state->buttons & CONT_DPAD_UP) {
-      printf("switching to perspectiveFovRH_NO\n");
-      set_perspective(perspectiveFovRH_NO);
+      cube_state.speed.x = 0;
+      cube_state.speed.y = 0;
+      cube_state.pos.x = 0;
+      cube_state.pos.y = 0;
+      cube_state.pos.z = 0;
+      cube_state.rot.x = 0;
+      cube_state.rot.y = 0;
     }
     if (state->buttons & CONT_DPAD_DOWN) {
       printf("switching to perspectiveFovLH_NO\n");
