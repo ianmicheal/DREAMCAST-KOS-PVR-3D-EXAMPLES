@@ -53,9 +53,15 @@ KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
 KOS_INIT_ROMDISK(romdisk);
 
 static matrix_t perspective_matrix __attribute__((aligned(32)));
-static const float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
-static const float zoom_speed = 0.30f;
-static const float cubescale = 1.0f;
+static const float tex_coords[4][2] = {
+    {0, 0}, // left bottom
+    {1, 0}, // left top
+    {0, 1}, // right top
+    {1, 1}, // right bottom
+};
+
+static const float zoom_speed = 0.030f;
+static const float cubescale = 0.750f;
 static kos_texture_t *texture;
 
 /**  Cube vertices and side strips
@@ -108,63 +114,7 @@ static struct cube {
   struct {
     float x, y;
   } speed;
-} cube_state;
-
-// Ensure perspective_mat is aligned to a 32-byte boundary
-static matrix_t perspective_mat __attribute__((aligned(32))) = {{0.0f}};
-void perspectiveFovRH_NO(float rad, float aspect, float zNear, float zFar) {
-  float const h = fcos(0.5 * rad) / fsin(0.5 * rad);
-  float const w = h * aspect;
-  perspective_mat[0][0] = w;
-  perspective_mat[1][1] = h;
-  perspective_mat[2][2] = -(zFar + zNear) / (zFar - zNear);
-  perspective_mat[2][3] = -1.0f;
-  perspective_mat[3][2] = -(2.0 * zFar * zNear) / (zFar - zNear);
-  mat_apply(&perspective_mat);
-}
-
-void perspectiveFovLH_NO(float rad, float aspect, float zNear, float zFar) {
-  float const h = fcos(0.5 * rad) / fsin(0.5 * rad);
-  float const w = h * aspect;
-  perspective_mat[0][0] = w;
-  perspective_mat[1][1] = h;
-  perspective_mat[2][2] = (zFar + zNear) / (zFar - zNear);
-  perspective_mat[2][3] = 1.0f;
-  perspective_mat[3][2] = -(2.0f * zFar * zNear) / (zFar - zNear);
-  mat_apply(&perspective_mat);
-}
-
-void infinitePerspectiveRH(float fovy, float aspect, float zNear,
-                           float unused) {
-  float const range = ftan(fovy * 0.5f) * zNear;
-  float const left = -range * aspect;
-  float const right = range * aspect;
-  float const bottom = -range;
-  float const top = range;
-
-  perspective_mat[0][0] = (2.0f * zNear) / (right - left);
-  perspective_mat[1][1] = (2.0 * zNear) / (top - bottom);
-  perspective_mat[2][2] = -1.0f;
-  perspective_mat[2][3] = -1.0f;
-  perspective_mat[3][2] = -2.0f * zNear;
-  mat_apply(&perspective_mat);
-}
-
-void infinitePerspectiveLH(float fovy, float aspect, float zNear,
-                           float unused) {
-  float const range = ftan(fovy * 0.5f) * zNear;
-  float const left = -range * aspect;
-  float const right = range * aspect;
-  float const bottom = -range;
-  float const top = range;
-
-  perspective_mat[0][0] = (2.0f * zNear) / (right - left);
-  perspective_mat[1][1] = (2.0 * zNear) / (top - bottom);
-  perspective_mat[2][2] = 1.0f;
-  perspective_mat[2][3] = 1.0f;
-  perspective_mat[3][2] = -2.0f * zNear;
-  mat_apply(&perspective_mat);
-}
+} cube_state = {0};
 
 kos_texture_t *load_png_texture(const char *filename) {
   //   printf("Entering load_png_texture\n");
@@ -207,33 +157,49 @@ void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.culling = PVR_CULLING_CCW;
 }
 
-static matrix_t mat = {{0.0f}};
+void printcube() {
+  printf("     7*------------*5\n"
+         "     /|           /|\n"
+         "    / |          / |\n"
+         "  1*============*3 |\n"
+         "   I  |         I  |\n"
+         "   I 6*---------I--*4\n"
+         "   I /          I /\n"
+         "   I/           I/\n"
+         "  0*============*2\n\n"
+         "0: %8.2f, %8.2f, %8.2f\n"
+         "1: %8.2f, %8.2f, %8.2f\n"
+         "2: %8.2f, %8.2f, %8.2f\n"
+         "3: %8.2f, %8.2f, %8.2f\n"
+         "4: %8.2f, %8.2f, %8.2f\n"
+         "5: %8.2f, %8.2f, %8.2f\n"
+         "6: %8.2f, %8.2f, %8.2f\n"
+         "7: %8.2f, %8.2f, %8.2f\n",
+         cube_vertices[0].x, cube_vertices[0].y, cube_vertices[0].z,
+         cube_vertices[1].x, cube_vertices[1].y, cube_vertices[1].z,
+         cube_vertices[2].x, cube_vertices[2].y, cube_vertices[2].z,
+         cube_vertices[3].x, cube_vertices[3].y, cube_vertices[3].z,
+         cube_vertices[4].x, cube_vertices[4].y, cube_vertices[4].z,
+         cube_vertices[5].x, cube_vertices[5].y, cube_vertices[5].z,
+         cube_vertices[6].x, cube_vertices[6].y, cube_vertices[6].z,
+         cube_vertices[7].x, cube_vertices[7].y, cube_vertices[7].z
+
+  );
+}
+
+static matrix_t prntmat __attribute__((aligned(32))) = {{0.0f}};
 void printmatrix() {
-  mat_store(&mat);
+  mat_store(&prntmat);
   printf("-------------------------------------------------\n");
   for (int i = 0; i < 4; i++) {
-    printf("|%9.4f |%9.4f |%9.4f |%9.4f |\n", mat[i][0], mat[i][1], mat[i][2],
-           mat[i][3]);
+    printf("|%9.4f |%9.4f |%9.4f |%9.4f |\n", prntmat[i][0], prntmat[i][1],
+           prntmat[i][2], prntmat[i][3]);
   }
   printf("-------------------------------------------------\n");
 }
 
-const float model_scale = 0.1f;
+const float model_scale = 0.3f;
 
-static perspectiveFun currentPerspective = NULL;
-void set_perspective(perspectiveFun perfun) {
-  currentPerspective = perfun;
-  mat_identity();
-
-  currentPerspective(45.0f * F_PI / 180.0f, 640.0f / 480, -2 * model_scale,
-                     2 * model_scale);
-  printmatrix();
-  vec3f_t eye = {0, 0.0001, cube_state.pos.z};
-  vec3f_t center = {0, 0, 0};
-  vec3f_t up = {0, 0, 1};
-  mat_lookat(&eye, &center, &up);
-  mat_store(&perspective_matrix);
-}
 void render_cube(void) {
   pvr_poly_cxt_t cxt;
   pvr_poly_hdr_t hdr;
@@ -249,33 +215,33 @@ void render_cube(void) {
   pvr_dr_init(&dr_state);
   // Render all six quads
   mat_identity();
-  float half_radians =  45.0f * F_PI / 180.0f;
-  float fcot = 0.5f/ftan(half_radians);
-  mat_perspective(320.0f, 240.0, fcot, -20.0f, 20.0f);
+  float radians = 45.0f * F_PI / 180.0f;
+  float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
+  mat_perspective(320.0f, 240.0f, cot_fovy_2, -20.0f, 20.0f);
 
-  vec3f_t eye = {0, 0.0001, 0.0f};
+  vec3f_t eye = {0, 0.0001, 1.0f};
   vec3f_t center = {0, 0, 0};
-  vec3f_t up = {0, 0, -1.0f};
+  vec3f_t up = {0, 1.0f, 0};
   mat_lookat(&eye, &center, &up);
 
-  // printmatrix();
-
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  // printmatrix();
   mat_scale(model_scale, model_scale, model_scale);
 
-  mat_rotate_z(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
+  mat_rotate_x(cube_state.rot.x);
+  mat_rotate_z(cube_state.rot.y);
+  mat_rotate_y(0.0f);
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 4; j++) {
-      vec3f_t v = {.x = cube_vertices[cube_side_strips[i][j]].x,
-                   .y = cube_vertices[cube_side_strips[i][j]].y,
-                   .z = cube_vertices[cube_side_strips[i][j]].z};
+      vec3f_t v = {
+          .x = cube_vertices[cube_side_strips[i][j]].x,
+          .y = cube_vertices[cube_side_strips[i][j]].y,
+          .z = cube_vertices[cube_side_strips[i][j]].z };
 
       float w = 1.0f;
       mat_trans_single4(v.x, v.y, v.z, w);
-      w = 1.0f / w;
       vert = pvr_dr_target(dr_state);
+      // vert->z = w;
+      w = 1.0f / w;
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
       vert->x = v.x * w;
       vert->y = v.y * w;
@@ -305,11 +271,9 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  cube_state.pos.z = 0;
+  cube_state.pos.z = 1.0f;
   cube_state.rot.x = 0;
   cube_state.rot.y = 5;
-
-  set_perspective(perspectiveFovLH_NO);
 
   while (1) {
     vid_border_color(0, 255, 0);
@@ -379,25 +343,11 @@ int main(int argc, char *argv[]) {
     if (state->buttons & CONT_B)
       cube_state.speed.y -= 0.001f;
     if (state->buttons & CONT_DPAD_UP) {
-      cube_state.speed.x = 0;
-      cube_state.speed.y = 0;
-      cube_state.pos.x = 0;
-      cube_state.pos.y = 0;
-      cube_state.pos.z = 0;
-      cube_state.rot.x = 0;
-      cube_state.rot.y = 0;
+      cube_state = (struct cube){0};
+      cube_state.pos.z = 1.0f;
     }
     if (state->buttons & CONT_DPAD_DOWN) {
-      printf("switching to perspectiveFovLH_NO\n");
-      set_perspective(perspectiveFovLH_NO);
-    }
-    if (state->buttons & CONT_DPAD_RIGHT) {
-      printf("switching to infinitePerspectiveRH\n");
-      set_perspective(infinitePerspectiveRH);
-    }
-    if (state->buttons & CONT_DPAD_LEFT) {
-      printf("switching to infinitePerspectiveLH\n");
-      set_perspective(infinitePerspectiveLH);
+      printcube();
     }
 
     MAPLE_FOREACH_END()

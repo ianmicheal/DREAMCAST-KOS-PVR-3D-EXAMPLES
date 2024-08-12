@@ -169,18 +169,18 @@ void render_cube(void) {
   mat_scale(scale * zoom_scale, scale * zoom_scale, scale * zoom_scale);
   mat_store(&model_view_matrix);
 
-  float vertices[24][3] = {{-scale, -scale, scale},  {scale, -scale, scale},
-                           {-scale, scale, scale},   {scale, scale, scale},
-                           {scale, -scale, scale},   {scale, -scale, -scale},
-                           {scale, scale, scale},    {scale, scale, -scale},
-                           {scale, -scale, -scale},  {-scale, -scale, -scale},
-                           {scale, scale, -scale},   {-scale, scale, -scale},
-                           {-scale, -scale, -scale}, {-scale, -scale, scale},
-                           {-scale, scale, -scale},  {-scale, scale, scale},
-                           {-scale, scale, scale},   {scale, scale, scale},
-                           {-scale, scale, -scale},  {scale, scale, -scale},
-                           {-scale, -scale, -scale}, {scale, -scale, -scale},
-                           {-scale, -scale, scale},  {scale, -scale, scale}};
+  float vertices[24][3] = {{-scale, -scale, +scale}, {+scale, -scale, +scale},
+                           {-scale, +scale, +scale}, {+scale, +scale, +scale},
+                           {+scale, -scale, +scale}, {+scale, -scale, -scale},
+                           {+scale, +scale, +scale}, {+scale, +scale, -scale},
+                           {+scale, -scale, -scale}, {-scale, -scale, -scale},
+                           {+scale, +scale, -scale}, {-scale, +scale, -scale},
+                           {-scale, -scale, -scale}, {-scale, -scale, +scale},
+                           {-scale, +scale, -scale}, {-scale, +scale, +scale},
+                           {-scale, +scale, +scale}, {+scale, +scale, +scale},
+                           {-scale, +scale, -scale}, {+scale, +scale, -scale},
+                           {-scale, -scale, -scale}, {+scale, -scale, -scale},
+                           {-scale, -scale, +scale}, {+scale, -scale, +scale}};
 
   float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
 
