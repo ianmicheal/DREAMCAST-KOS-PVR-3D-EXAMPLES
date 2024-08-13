@@ -270,12 +270,12 @@ int main(int argc, char *argv[]) {
       cube_y -= (state->joyy / 32768.0f) * 1000.5f;
     }
 
-    float zoom_speed = 0.30f;
+    float ZOOM_SPEED = 0.30f;
     if (state->ltrig > 16) {
-      cube_z -= (state->ltrig / 255.0f) * zoom_speed;
+      cube_z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
     }
     if (state->rtrig > 16) {
-      cube_z += (state->rtrig / 255.0f) * zoom_speed;
+      cube_z += (state->rtrig / 255.0f) * ZOOM_SPEED;
     }
 
     if (cube_z < -10.0f)
