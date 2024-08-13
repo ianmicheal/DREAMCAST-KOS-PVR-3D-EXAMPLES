@@ -163,7 +163,7 @@ static inline void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.specular = PVR_SPECULAR_ENABLE;
 }
 
-static matrix_t projection_view = {0};
+static matrix_t projection_view __attribute__((aligned(32))) = {0};
 void update_projection_view() {
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
