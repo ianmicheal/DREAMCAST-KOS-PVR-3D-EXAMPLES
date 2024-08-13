@@ -52,7 +52,6 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
 KOS_INIT_ROMDISK(romdisk);
 
-static matrix_t perspective_matrix __attribute__((aligned(32)));
 static const float tex_coords[4][2] = {
     {0, 0}, // left bottom
     {1, 0}, // left top
@@ -116,8 +115,7 @@ static struct cube {
   } speed;
 } cube_state = {0};
 
-static fovy = 45.0f;
-
+static float fovy = 45.0f;
 
 kos_texture_t *load_png_texture(const char *filename) {
   //   printf("Entering load_png_texture\n");
@@ -160,7 +158,6 @@ void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.culling = PVR_CULLING_CCW;
 }
 
-
 static matrix_t prntmat __attribute__((aligned(32))) = {{0.0f}};
 void printmatrix() {
   mat_store(&prntmat);
@@ -175,51 +172,56 @@ void printmatrix() {
 const float model_scale = 0.3f;
 
 void render_cube(void) {
-  pvr_poly_cxt_t cxt;
-  pvr_poly_hdr_t hdr;
-  pvr_vertex_t *vert;
-  pvr_dr_state_t dr_state;
-
-  init_poly_context(&cxt);
-  pvr_poly_compile(&hdr, &cxt);
-  pvr_prim(&hdr, sizeof(hdr));
-
   // Calculate cubescale based on cube_z
-
-  pvr_dr_init(&dr_state);
-  // Render all six quads
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
   mat_perspective(320.0f, 240.0f, cot_fovy_2, -20.0f, 20.0f);
 
-  vec3f_t eye = {0, 0.0001, 1.0f};
-  vec3f_t center = {0, 0, 0};
-  vec3f_t up = {0, 1.0f, 0};
+  point_t eye = {0.0001f, 0.0001f, 1.0f, 0.0f};
+  point_t center = {0.0001f, 0.0001f, 0.0001f, 0.0f};
+  point_t up = {0.0001f, 1.0f, 0.0001f, 0.0f};
   mat_lookat(&eye, &center, &up);
 
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(model_scale, model_scale, model_scale);
 
   mat_rotate_x(cube_state.rot.x);
-  mat_rotate_z(cube_state.rot.y);
-  mat_rotate_y(0.0f);
+  mat_rotate_y(cube_state.rot.y);
+  mat_rotate_z(0.0f);
+
+  vec3f_t tverts[8] = {0};
+  vec3f_t *vp;
+
+  for (int i = 0; i < 8; i++) {
+    vp = tverts + i;
+    vp->x = cube_vertices[i].x;
+    vp->y = cube_vertices[i].y;
+    vp->z = cube_vertices[i].z;
+    float w = 1.0f;
+    mat_trans_single4(vp->x, vp->y, vp->z, w);
+    w = 1.0f / w;
+    vp->x *= w;
+    vp->y *= w;
+    vp->z *= w;
+  }
+
+  pvr_poly_cxt_t cxt;
+  pvr_dr_state_t dr_state;
+  pvr_poly_hdr_t hdr;
+  pvr_vertex_t *vert;
+  init_poly_context(&cxt);
+  pvr_poly_compile(&hdr, &cxt);
+  pvr_prim(&hdr, sizeof(hdr));
+  pvr_dr_init(&dr_state);
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 4; j++) {
-      vec3f_t v = {
-          .x = cube_vertices[cube_side_strips[i][j]].x,
-          .y = cube_vertices[cube_side_strips[i][j]].y,
-          .z = cube_vertices[cube_side_strips[i][j]].z };
-
-      float w = 1.0f;
-      mat_trans_single4(v.x, v.y, v.z, w);
+      vp = tverts + cube_side_strips[i][j];
       vert = pvr_dr_target(dr_state);
-      // vert->z = w;
-      w = 1.0f / w;
       vert->flags = (j == 3) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
-      vert->x = v.x * w;
-      vert->y = v.y * w;
-      vert->z = v.z * w;
+      vert->x = vp->x;
+      vert->y = vp->y;
+      vert->z = vp->z;
       vert->u = tex_coords[j][0];
       vert->v = tex_coords[j][1];
       vert->argb = side_colors[i];
