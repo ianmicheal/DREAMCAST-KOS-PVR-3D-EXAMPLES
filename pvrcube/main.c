@@ -205,11 +205,11 @@ void render_cube(void) {
       vert->z = vp->z;
       vert->u = tex_coords[j][0];
       vert->v = tex_coords[j][1];
-      vert->argb =
-          0xCFFFFFFF; // slightly transparent and preserve texture color, if any
-      // specular color does the following: resulting color = texsample * argb +
-      // oargb So white texture samples will remain white and black texture
-      // samples will be the same as oargb
+      vert->argb = 0xCFFFFFFF;
+      // The oargb specular color does the following:
+      // resulting color = texsample * argb + oargb.
+      // So white texture samples will remain white and black texture samples
+      // will be the same as oargb
       vert->oargb = specular_side_colors[i];
       pvr_dr_commit(vert);
     }
