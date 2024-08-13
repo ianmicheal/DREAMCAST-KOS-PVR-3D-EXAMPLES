@@ -163,7 +163,7 @@ static inline void init_poly_context(pvr_poly_cxt_t *cxt) {
   cxt->gen.specular = PVR_SPECULAR_ENABLE;
 }
 
-static matrix_t projection_view __attribute__((aligned(32))) = {0};
+static matrix_t _projection_view __attribute__((aligned(32))) = {0};
 void update_projection_view() {
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
@@ -174,11 +174,11 @@ void update_projection_view() {
   vec3f_t center = {0.f, 0.f, 0.f};
   vec3f_t up = {0.f, 0.f, 1.f};
   mat_lookat(&eye, &center, &up);
-  mat_store(&projection_view);
+  mat_store(&_projection_view);
 }
 
 void render_cube(void) {
-  mat_load(&projection_view);
+  mat_load(&_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
