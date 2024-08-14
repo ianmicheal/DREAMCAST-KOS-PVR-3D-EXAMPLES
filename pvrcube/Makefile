@@ -23,14 +23,12 @@
 #/********************************************************************************************/ 
 KOS_CFLAGS+= -g -std=c99 -Og
 TARGET = pvrcube.elf
-OBJS = main.o 
+OBJS = pvrcube.o 
 
 all: rm-elf $(TARGET)
 
 include $(KOS_BASE)/Makefile.rules
 
-clean:
-	-rm -f $(TARGET) $(OBJS) romdisk.*
 rm-elf:
 	-rm -f $(TARGET) romdisk.*
 
@@ -49,3 +47,6 @@ run: $(TARGET)
 dist:
 	rm -f $(OBJS) romdisk.o romdisk.img
 	$(KOS_STRIP) $(TARGET)
+
+clean:
+	-rm -f $(TARGET) $(OBJS) romdisk.*
