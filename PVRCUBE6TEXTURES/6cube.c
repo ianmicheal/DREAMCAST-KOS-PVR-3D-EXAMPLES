@@ -67,7 +67,7 @@ float xrot = 0.0f, yrot = 0.0f, xspeed = 0.0f, yspeed = 0.0f;
  debugging. dRxL provided the basic function and idea that got me on track and
  is a MVP!!
  */
-static matrix_t perspective_mat __attribute__((aligned(32)));
+static matrix_t _perspective_mtrx __attribute__((aligned(32)));
 
 void mat_perspective_fov(float fov, float aspect, float zNear, float zFar) {
   float f = 1.0f / ftan(fov * 0.5f * F_PI / 180.0f);
@@ -77,8 +77,8 @@ void mat_perspective_fov(float fov, float aspect, float zNear, float zFar) {
       {0.0f, 0.0f, (zFar + zNear) / (zNear - zFar),
        (2.0f * zFar * zNear) / (zNear - zFar)},
       {0.0f, 0.0f, -1.0f, 0.0f}};
-  memcpy(perspective_mat, local_mat, sizeof(matrix_t));
-  mat_load(&perspective_mat);
+  memcpy(_perspective_mtrx, local_mat, sizeof(matrix_t));
+  mat_load(&_perspective_mtrx);
 }
 
 static inline float min_float(float a, float b) { return a < b ? a : b; }
@@ -169,18 +169,18 @@ void render_cube(void) {
   mat_scale(scale * zoom_scale, scale * zoom_scale, scale * zoom_scale);
   mat_store(&model_view_matrix);
 
-  float vertices[24][3] = {{-scale, -scale, scale},  {scale, -scale, scale},
-                           {-scale, scale, scale},   {scale, scale, scale},
-                           {scale, -scale, scale},   {scale, -scale, -scale},
-                           {scale, scale, scale},    {scale, scale, -scale},
-                           {scale, -scale, -scale},  {-scale, -scale, -scale},
-                           {scale, scale, -scale},   {-scale, scale, -scale},
-                           {-scale, -scale, -scale}, {-scale, -scale, scale},
-                           {-scale, scale, -scale},  {-scale, scale, scale},
-                           {-scale, scale, scale},   {scale, scale, scale},
-                           {-scale, scale, -scale},  {scale, scale, -scale},
-                           {-scale, -scale, -scale}, {scale, -scale, -scale},
-                           {-scale, -scale, scale},  {scale, -scale, scale}};
+  float vertices[24][3] = {{-scale, -scale, +scale}, {+scale, -scale, +scale},
+                           {-scale, +scale, +scale}, {+scale, +scale, +scale},
+                           {+scale, -scale, +scale}, {+scale, -scale, -scale},
+                           {+scale, +scale, +scale}, {+scale, +scale, -scale},
+                           {+scale, -scale, -scale}, {-scale, -scale, -scale},
+                           {+scale, +scale, -scale}, {-scale, +scale, -scale},
+                           {-scale, -scale, -scale}, {-scale, -scale, +scale},
+                           {-scale, +scale, -scale}, {-scale, +scale, +scale},
+                           {-scale, +scale, +scale}, {+scale, +scale, +scale},
+                           {-scale, +scale, -scale}, {+scale, +scale, -scale},
+                           {-scale, -scale, -scale}, {+scale, -scale, -scale},
+                           {-scale, -scale, +scale}, {+scale, -scale, +scale}};
 
   float tex_coords[4][2] = {{0, 1}, {1, 1}, {0, 0}, {1, 0}};
 
@@ -270,12 +270,12 @@ int main(int argc, char *argv[]) {
       cube_y -= (state->joyy / 32768.0f) * 1000.5f;
     }
 
-    float zoom_speed = 0.30f;
+    float ZOOM_SPEED = 0.30f;
     if (state->ltrig > 16) {
-      cube_z -= (state->ltrig / 255.0f) * zoom_speed;
+      cube_z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
     }
     if (state->rtrig > 16) {
-      cube_z += (state->rtrig / 255.0f) * zoom_speed;
+      cube_z += (state->rtrig / 255.0f) * ZOOM_SPEED;
     }
 
     if (cube_z < -10.0f)
