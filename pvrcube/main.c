@@ -28,7 +28,6 @@
 /*                                                                                          */
 /********************************************************************************************/
 
-#include <arch/gdb.h>
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
 #include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
@@ -170,9 +169,9 @@ void update_projection_view() {
   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
   mat_perspective(320.0f, 240.0f, cot_fovy_2, -10.f, +10.0f);
 
-  vec3f_t eye = {0.f, -0.00001f, 20.0f};
-  vec3f_t center = {0.f, 0.f, 0.f};
-  vec3f_t up = {0.f, 0.f, 1.f};
+  point_t eye = {0.f, -0.00001f, 20.0f};
+  point_t center = {0.f, 0.f, 0.f};
+  vector_t up = {0.f, 0.f, 1.f};
   mat_lookat(&eye, &center, &up);
   mat_store(&_projection_view);
 }
@@ -185,7 +184,7 @@ void render_cube(void) {
   mat_rotate_y(cube_state.rot.y);
 
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
-  mat_transform(&cube_vertices, &tverts, 8, sizeof(vec3f_t));
+  mat_transform((vector_t*)&cube_vertices, (vector_t*)&tverts, 8, sizeof(vec3f_t));
 
   pvr_poly_cxt_t cxt;
   pvr_dr_state_t dr_state;
@@ -227,10 +226,11 @@ static inline void cube_startpos() {
 }
 
 int update_state() {
-  int no_exit = 1;
+  int keep_running = 1;
   MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
-  if (state->buttons & CONT_START)
-    no_exit = 0;
+  if (state->buttons & CONT_START){
+    keep_running = 0;
+  }
 
   // Analog stick for X and Y movement
   if (abs(state->joyx) > 16) {
@@ -309,16 +309,14 @@ int update_state() {
   if (ABS(cube_state.speed.y) < 0.0001f)
     cube_state.speed.x = 0;
 
-  return no_exit;
+  return keep_running;
 }
 
 int main(int argc, char *argv[]) {
-  gdb_init();
   pvr_init_params_t params = {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
        PVR_BINSIZE_0},
-      512 * 1024,
-
+      512 * 1024, // Vertex buffer size
       0, // No DMA
       0, //  No FSAA
       0  // Translucent Autosort enabled.
@@ -332,7 +330,6 @@ int main(int argc, char *argv[]) {
     printf("Failed to load texture.\n");
     return -1;
   }
-
   cube_startpos();
 
   while (1) {
@@ -340,7 +337,6 @@ int main(int argc, char *argv[]) {
       break;
 
     pvr_wait_ready();
-
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_TR_POLY);
 
