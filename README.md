@@ -13,6 +13,9 @@ Welcome to the KallistiOS PVR API Only Example repository!
 
 [![Watch the second video](http://img.youtube.com/vi/S9obbHs4Hl8/0.jpg)](http://www.youtube.com/watch?v=S9obbHs4Hl8)
 
+[![Watch the video](https://img.youtube.com/vi/I8LAoi2RwAg/0.jpg)](https://youtu.be/I8LAoi2RwAg)
+
+
 This repository contains examples demonstrating how to use the KallistiOS PVR API directly. It focuses solely on the PVR API, without using any additional layers such as OpenGL, SDL, or Parallax. These examples are intended to provide straightforward solutions for common tasks using the KallistiOS PVR API.
 
 ## Features
@@ -21,6 +24,7 @@ This repository contains examples demonstrating how to use the KallistiOS PVR AP
 - **Texture Handling:** Loading and displaying textures.
 - **Zoom Effects:** Implementing zoom-in and zoom-out effects controlled by controller inputs.
 - **3D PVR Cube Example:** Demonstrating texture and matrix usage for 3D rendering.
+- **Perlin noise and font rendering** Demonstrating procedural texture generation GUI txt rendering overlay interface fast sh4 vector math.
 - **Clear and Commented Code:** Easy to understand with comprehensive comments.
 
 ## Getting Started
