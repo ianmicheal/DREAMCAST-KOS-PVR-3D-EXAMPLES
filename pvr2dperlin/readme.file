@@ -1,1 +1,27 @@
 
+#/********************************************************************************************/
+#/* KallistiOS Direct PVR API:2.0  Perlin 2d noise example                                   */
+#/********************************************************************************************/
+#/********************************************************************************************/
+#/*                                                                                          */
+#/********************************************************************************************/
+#/********************************************************************************************/
+#/* Name:     main.c                                                                         */
+#/* Title:    Perlin 2d noise example, V1.0 Kos Example                                      */
+#/* Author:   (c)Ian Micheal                                                                 */
+#/* Created:  08/05/24                                                                       */
+#/*                                                                                          */
+#/* Version:  1.0                                                                            */
+#/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR | Perlin 2d noise example                  */
+#/*                                                                                          */
+#/* Description: perlin 2d noise example                                                     */
+#/* The purpose of this example is to show the use of only the KOSPVR API to do 3D           */
+#/* And commented so anyone who knows OpenGL can use the DIRECT NO LAYER KOSPVR API.         */
+#/* History: version 2                                                                       */
+#/********************************************************************************************/
+#/********************************************************************************************/
+#/*        >>>  Help and code examples and advice these people where invaluable  <<<         */
+#/*     Mvp's:  dRxL with my_perspective_mat_lh and explaining to me the concepts            */
+#/*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.            */
+#/*                                                                                          */
+#/********************************************************************************************/ 
