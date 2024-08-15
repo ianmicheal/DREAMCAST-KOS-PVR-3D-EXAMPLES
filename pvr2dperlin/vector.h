@@ -28,65 +28,110 @@
 #include <math.h>
 #include <assert.h>
 
+// Define DC_FAST_MATHS to enable fast math operations specific to Dreamcast hardware
 #define DC_FAST_MATHS 1
 
+// If DC_FAST_MATHS is defined, include the Dreamcast-specific fast math library
 #ifdef DC_FAST_MATHS
 #include <dc/fmath.h>
 #endif
 
+// Include the Dreamcast matrix operations library
 #include <dc/matrix.h>
+
+// Define M_PI if it's not already defined
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-static __inline__ FLOAT_TYPE
+/**
+ * @brief Calculate the dot product of two 3D vectors
+ * 
+ * @param a Pointer to the first vector
+ * @param b Pointer to the second vector
+ * @return FLOAT_TYPE The dot product of vectors a and b
+ */
+static inline FLOAT_TYPE
 vec_dot (const FLOAT_TYPE *a, const FLOAT_TYPE *b)
 {
 #ifdef DC_FAST_MATHS
+  // Use Dreamcast-specific FIPR (Floating-point Inner Product) instruction
   return fipr (a[0], a[1], a[2], 0.0, b[0], b[1], b[2], 0.0);
 #else
+  // Standard dot product calculation
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 #endif
 }
 
-static __inline__ void
+/**
+ * @brief Normalize a 3D vector
+ * 
+ * @param dst Pointer to the destination vector where the normalized result will be stored
+ * @param in Pointer to the input vector to be normalized
+ */
+static inline void
 vec_normalize (FLOAT_TYPE *dst, const FLOAT_TYPE *in)
 {
 #ifdef DC_FAST_MATHS
+  // Use Dreamcast-specific fast math operations
+  // Calculate the squared magnitude using FIPR
   FLOAT_TYPE mag = __fipr_magnitude_sqr (in[0], in[1], in[2], 0.0);
+  // Use fast reciprocal square root
   FLOAT_TYPE rsqrt_mag = frsqrt (mag);
+  // Multiply each component by the reciprocal square root of the magnitude
   dst[0] = in[0] * rsqrt_mag;
   dst[1] = in[1] * rsqrt_mag;
   dst[2] = in[2] * rsqrt_mag;
 #else
+  // Standard normalization procedure
+  // Calculate the magnitude of the vector
   FLOAT_TYPE factor = sqrtf (in[0] * in[0] + in[1] * in[1] + in[2] * in[2]);
   
+  // Avoid division by zero
   if (factor != 0.0)
     factor = 1.0 / factor;
   
+  // Multiply each component by the reciprocal of the magnitude
   dst[0] = in[0] * factor;
   dst[1] = in[1] * factor;
   dst[2] = in[2] * factor;
 #endif
 }
 
-static __inline__ FLOAT_TYPE
+/**
+ * @brief Calculate the length (magnitude) of a 3D vector
+ *
+ * @param vec Pointer to the 3D vector
+ * @return FLOAT_TYPE The length of the vector
+ */
+static inline FLOAT_TYPE
 vec_length (const FLOAT_TYPE *vec)
 {
 #ifdef DC_FAST_MATHS
-  return fsqrt (fipr_magnitude_sqr (vec[0], vec[1], vec[2], 0.0));
+    // Use Dreamcast-specific fast math operations
+    // fipr_magnitude_sqr calculates the squared magnitude using FIPR (Floating-point Inner Product)
+    // fsqrt is a fast square root function
+    return fsqrt(fipr_magnitude_sqr(vec[0], vec[1], vec[2], 0.0));
 #else
-  return sqrtf (vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+    // Standard vector length calculation
+    // Calculate the sum of squares and then take the square root
+    return sqrtf(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
 #endif
 }
 
+/**
+ * @brief Define a 4x4 matrix aligned to a 32-byte boundary
+ *
+ * This matrix is initialized with all zeros. The alignment is important
+ * for optimal memory access on the Dreamcast hardware.
+ */
 static matrix_t b_mat __attribute__((aligned(32))) =
-  {
+{
     { 0.0, 0.0, 0.0, 0.0 },
     { 0.0, 0.0, 0.0, 0.0 },
     { 0.0, 0.0, 0.0, 0.0 },
     { 0.0, 0.0, 0.0, 0.0 }
-  };
+};
 
 static __inline__ void
 vec_cross (FLOAT_TYPE *dst, const FLOAT_TYPE *a, const FLOAT_TYPE *b)
