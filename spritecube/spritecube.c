@@ -47,11 +47,36 @@
 #define MIN_ZOOM -10.0f
 #define MAX_ZOOM 15.0f
 
+#define SUPERSAMPLING 1
+#if SUPERSAMPLING == 1
+#define XSCALE 2.0f
+#else
+#define XSCALE 1.0f
+#endif
+
+#define DEBUG
+
+typedef enum { WIREFRAME, TEXTURED } render_mode_e;
+
+static render_mode_e render_mode = TEXTURED;
+
 typedef struct {
   pvr_ptr_t ptr;
   int w, h;
   uint32 fmt;
 } kos_texture_t;
+
+static struct {
+  uint32_t A : 1;
+  uint32_t B : 1;
+  uint32_t X : 1;
+  uint32_t Y : 1;
+  uint32_t START : 1;
+  uint32_t DPAD_UP : 1;
+  uint32_t DPAD_DOWN : 1;
+  uint32_t DPAD_LEFT : 1;
+  uint32_t DPAD_RIGHT : 1;
+} buttons;
 
 extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
@@ -159,7 +184,7 @@ void update_projection_view() {
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
-  mat_perspective(320.0f, 240.0f, cot_fovy_2, -10.f, +10.0f);
+  mat_perspective(XSCALE * 320.0f, 240.0f, cot_fovy_2, -10.f, +10.0f);
 
   point_t eye = {0.f, -0.00001f, 20.0f};
   point_t center = {0.f, 0.f, 0.f};
@@ -200,23 +225,18 @@ static inline void draw_line(vec3f_t *ac, vec3f_t *dc, float centerz,
   // make a pointer with 32 bytes negative offset to allow correct access
   // to the second half of the quad
   pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-  quad2ndhalf->cy = to->y - LINE_WIDTH * direction.x;
+  quad2ndhalf->cy = to->y - LINE_WIDTH * XSCALE * direction.x;
   quad2ndhalf->cz = to->z + centerz * 0.1;
-  quad2ndhalf->dx = from->x + LINE_WIDTH * direction.y;
+  quad2ndhalf->dx = from->x + LINE_WIDTH * XSCALE * direction.y;
   quad2ndhalf->dy = from->y - LINE_WIDTH * direction.x;
 
   pvr_dr_commit(quad);
 }
 
 void render_wire_cube(void) {
-
-  pvr_wait_ready();
-  pvr_scene_begin();
-  pvr_list_begin(PVR_LIST_OP_POLY);
-
   mat_load(&_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
   mat_rotate_y(cube_state.rot.y);
 
@@ -256,20 +276,12 @@ void render_wire_cube(void) {
     draw_line(ac, bc, centerz, &dr_state);
   }
   pvr_dr_finish();
-
-  pvr_list_finish();
-  pvr_scene_finish();
 }
 
 void render_txr_cube(void) {
-
-  pvr_wait_ready();
-  pvr_scene_begin();
-  pvr_list_begin(PVR_LIST_TR_POLY);
-
   mat_load(&_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
   mat_rotate_y(cube_state.rot.y);
 
@@ -331,9 +343,6 @@ void render_txr_cube(void) {
     pvr_dr_commit(quad);
   }
   pvr_dr_finish();
-
-  pvr_list_finish();
-  pvr_scene_finish();
 }
 
 static inline void cube_startpos() {
@@ -391,6 +400,18 @@ int update_state() {
     fovy = DEFAULT_FOV;
     cube_startpos();
   }
+  if (state->buttons & CONT_DPAD_RIGHT) {
+    if (buttons.DPAD_RIGHT == 0) {
+      buttons.DPAD_RIGHT = 1;
+      if (render_mode == TEXTURED)
+        render_mode = WIREFRAME;
+      else
+        render_mode = TEXTURED;
+    }
+  } else {
+    buttons.DPAD_RIGHT = 0;
+  }
+
   if (state->buttons & CONT_DPAD_DOWN) {
     fovy -= 1.0f;
     update_projection_view();
@@ -398,20 +419,6 @@ int update_state() {
   if (state->buttons & CONT_DPAD_UP) {
     fovy += 1.0f;
     update_projection_view();
-  }
-
-  if (state->buttons & CONT_DPAD_RIGHT) {
-    printf("fovy = %f\n"
-           "cube_state.pos.x = %f\n"
-           "cube_state.pos.y = %f\n"
-           "cube_state.pos.z = %f\n"
-           "cube_state.rot.x = %f\n"
-           "cube_state.rot.y = %f\n"
-           "cube_state.speed.x = %f\n"
-           "cube_state.speed.y = %f\n",
-           fovy, cube_state.pos.x, cube_state.pos.y, cube_state.pos.z,
-           cube_state.rot.x, cube_state.rot.y, cube_state.speed.x,
-           cube_state.speed.y);
   }
   MAPLE_FOREACH_END()
 
@@ -433,15 +440,20 @@ int update_state() {
 }
 
 int main(int argc, char *argv[]) {
-  // gdb_init();
+
+#ifdef DEBUG
+  gdb_init();
+#endif
+
+  pvr_set_bg_color(0.0, 0.0, 24.0f / 255.0f);
   pvr_init_params_t params = {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
        PVR_BINSIZE_0},
       512 * 1024,
 
-      0, // No DMA
-      1, //  Enable horisontal FSAA
-      0  // Translucent Autosort enabled.
+      0,             // No DMA
+      SUPERSAMPLING, //  Set horisontal FSAA
+      0              // Translucent Autosort enabled.
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
@@ -454,9 +466,50 @@ int main(int argc, char *argv[]) {
 
   cube_startpos();
   int keep_running = 1;
+
   while (keep_running) {
     keep_running = update_state();
-    render_txr_cube();
+
+#ifdef DEBUG
+    vid_border_color(255, 0, 0);
+#endif
+    pvr_wait_ready();
+
+#ifdef DEBUG
+    vid_border_color(0, 255, 0);
+#endif
+    pvr_scene_begin();
+
+    switch (render_mode) {
+    case TEXTURED:
+      pvr_list_begin(PVR_LIST_TR_POLY);
+      render_txr_cube();
+      pvr_list_finish();
+      break;
+    case WIREFRAME:
+      pvr_list_begin(PVR_LIST_OP_POLY);
+      render_wire_cube();
+      pvr_list_finish();
+      break;
+    default:
+      break;
+    }
+#ifdef DEBUG
+    vid_border_color(0, 0, 255);
+#endif
+    if (!keep_running) {
+      pvr_stats_t stats;
+      pvr_get_stats(&stats);
+      printf("Last frame stats:\n"
+             "frame_count: %lu\n"
+             "rnd_last_time: %lu\n"
+             "vtx_buffer_used: %lu\n"
+             "vtx_buffer_used_max: %lu\n"
+             "frame_rate %f\n",
+             stats.frame_count, stats.rnd_last_time, stats.vtx_buffer_used,
+             stats.vtx_buffer_used_max, stats.frame_rate);
+    }
+    pvr_scene_finish();
   }
 
   printf("Cleaning up\n");
