@@ -28,7 +28,7 @@
 /*                                                                                          */
 /********************************************************************************************/
 
-#include <arch/gdb.h>
+// #include <arch/gdb.h>
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
 #include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
@@ -168,7 +168,7 @@ void update_projection_view() {
   mat_store(&_projection_view);
 }
 
-void render_cube(void) {
+void render_txr_cube(void) {
   mat_load(&_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
@@ -176,11 +176,10 @@ void render_cube(void) {
   mat_rotate_y(cube_state.rot.y);
 
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
-  mat_transform(&cube_vertices, &tverts, 8, sizeof(vec3f_t));
+  mat_transform((vector_t*)&cube_vertices, (vector_t*)&tverts, 8, sizeof(vec3f_t));
 
   pvr_dr_state_t dr_state;
 
-  sizeof(pvr_sprite_cxt_t) + sizeof(pvr_sprite_col_t) * 2 * 6;
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB4444, texture->w,
                      texture->h, texture->ptr, PVR_FILTER_BILINEAR);
@@ -331,7 +330,7 @@ int update_state() {
 }
 
 int main(int argc, char *argv[]) {
-  gdb_init();
+  // gdb_init();
   pvr_init_params_t params = {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
        PVR_BINSIZE_0},
@@ -362,7 +361,7 @@ int main(int argc, char *argv[]) {
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_TR_POLY);
 
-    render_cube();
+    render_txr_cube();
 
     pvr_list_finish();
     pvr_scene_finish();
