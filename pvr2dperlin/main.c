@@ -654,7 +654,7 @@ int main(int argc, char *argv[]) {
         // Record the start time for CPU operations
         cpu_start = timer_us_gettime64();
 	    
-    
+
 MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
     // Check if the Start button is pressed to exit the program
     if (state->buttons & CONT_START)
@@ -800,3 +800,4 @@ if (dc_logo_texture != NULL) {
 pvr_shutdown();
 
 return 0;  // Exit the program
+}
