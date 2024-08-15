@@ -184,7 +184,7 @@ vec_cross(FLOAT_TYPE *dst, const FLOAT_TYPE *a, const FLOAT_TYPE *b)
     dst[0] = tmp1;
     dst[1] = tmp2;
     dst[2] = tmp3;
-    // Note: The comment "dirty" might indicate that this method might have some precision issues
+
     #endif
 
 #else
