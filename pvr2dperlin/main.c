@@ -23,19 +23,18 @@
 	Date: 05/09/23 06:22
 	Description: Removed mouse point and made it lean :)
 */
-#include <kos.h>
-#include <dc/pvr.h>
-#include <math.h>
-#include <dc/fmath.h>
-#include <dc/matrix.h>
-#include <dc/pvr.h>
-#include <dc/sq.h>
-#include <png/png.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <dc/video.h>
-#include "fontnew.h"  // Include the new font header
-#include "perlin.h"
+#include <kos.h> /* Includes necessary KallistiOS (KOS) headers for Dreamcast development */
+#include <dc/pvr.h> /* PVR library headers for PowerVR graphics chip functions */
+#include <math.h> /* Standard math library headers for mathematical functions */
+#include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
+#include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
+#include <dc/sq.h> /* SH-4 Store Queue library headers for optimized memory transfers */
+#include <png/png.h> /* PNG library headers for handling PNG images */
+#include <stdio.h> /* Standard I/O library headers for input and output functions */
+#include <stdlib.h> /* Standard library headers for general-purpose functions */
+#include <dc/video.h> /* Video library headers for video display functions */
+#include "fontnew.h" /* Custom font header for font rendering */
+#include "perlin.h" /* Custom Perlin noise header for procedural texture generation */
 
 #define M_PI 3.14159265358979323846264338327950288419716939937510f
 #define PERLIN_TEXTURE_SIZE 16
