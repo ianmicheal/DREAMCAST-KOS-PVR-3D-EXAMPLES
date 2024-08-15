@@ -24,6 +24,7 @@
 #/*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.            */
 #/*                                                                                          */
 #/********************************************************************************************/ 
+
 KOS_CFLAGS+= -g -std=c99 
 TARGET = pvrcube.elf
 OBJS = 6cube.o 
@@ -52,6 +53,3 @@ run: $(TARGET)
 dist:
 	rm -f $(OBJS) romdisk.o romdisk.img
 	$(KOS_STRIP) $(TARGET)
-
-clean: 
-	rm *.o *.elf romdisk.img  

@@ -43,19 +43,15 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
 KOS_INIT_ROMDISK(romdisk);
 
-static const char *texture_files[NUM_TEXTURES] = {
-    "/rd/face1.png", "/rd/face2.png", "/rd/face3.png",
-    "/rd/face4.png", "/rd/face5.png", "/rd/face6.png"};
-
-#define NUM_TEXTURES sizeof(texture_files) / sizeof(texture_files[0])
+#define NUM_TEXTURES 6
 
 typedef struct {
-  pvr_ptr_t ptr;
-  int w, h;
-  uint32 fmt;
+    pvr_ptr_t ptr;
+    int w, h;
+    uint32 fmt;
 } kos_texture_t;
 
-kos_texture_t *textures[NUM_TEXTURES] = {NULL};
+kos_texture_t* textures[NUM_TEXTURES] = {NULL};
 
 float cube_x = 0.0f, cube_y = 0.0f, cube_z = -0.0f;
 float xrot = 0.0f, yrot = 0.0f, xspeed = 0.0f, yspeed = 0.0f;
@@ -129,14 +125,22 @@ kos_texture_t *load_png_texture(const char *filename) {
 }
 
 void load_cube_textures() {
-  for (int i = 0; i < NUM_TEXTURES; i++) {
-    textures[i] = load_png_texture(texture_files[i]);
-    if (!textures[i]) {
-      printf("Failed to load texture %s.\n", texture_files[i]);
-    }
-  }
-}
+    const char* texture_files[NUM_TEXTURES] = {
+        "/rd/face1.png",
+        "/rd/face2.png",
+        "/rd/face3.png",
+        "/rd/face4.png",
+        "/rd/face5.png",
+        "/rd/face6.png"
+    };
 
+    for (int i = 0; i < NUM_TEXTURES; i++) {
+        textures[i] = load_png_texture(texture_files[i]);
+        if (!textures[i]) {
+            printf("Failed to load texture %s.\n", texture_files[i]);
+        }
+    }
+}
 void init_poly_context(pvr_poly_cxt_t *cxt, int texture_index) {
   pvr_poly_cxt_txr(cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_ARGB4444,
                    textures[texture_index]->w, textures[texture_index]->h,
