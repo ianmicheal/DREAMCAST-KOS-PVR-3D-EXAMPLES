@@ -654,8 +654,7 @@ int main(int argc, char *argv[]) {
         // Record the start time for CPU operations
         cpu_start = timer_us_gettime64();
 	    
-        Certainly. Here's the fully commented version of the input handling code:
-cCopy// Iterate through all connected controllers
+    
 MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
     // Check if the Start button is pressed to exit the program
     if (state->buttons & CONT_START)
