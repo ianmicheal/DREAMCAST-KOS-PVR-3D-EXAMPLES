@@ -15,7 +15,7 @@ Welcome to the KallistiOS PVR API Only Example repository!
 
 [![Watch the video](https://img.youtube.com/vi/I8LAoi2RwAg/0.jpg)](https://youtu.be/I8LAoi2RwAg)
 
-![Perlin Noise](https://github.com/ianmicheal/DREAMCAST-KOS-PVR-3D-EXAMPLES/blob/main/pvr2dperlin/perlin.png?raw=true)
+
 
 This repository contains examples demonstrating how to use the KallistiOS PVR API directly. It focuses solely on the PVR API, without using any additional layers such as OpenGL, SDL, or Parallax. These examples are intended to provide straightforward solutions for common tasks using the KallistiOS PVR API.
 
