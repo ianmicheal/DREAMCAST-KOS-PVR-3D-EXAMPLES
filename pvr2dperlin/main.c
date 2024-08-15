@@ -459,7 +459,7 @@ void render_text_overlay() {
         draw_poly_strf(x, y, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, (char *)all_lines[i]);
         y += 24;  // Move to the next line
     }
-}
+
 
 
 // Render the Dreamcast logo
