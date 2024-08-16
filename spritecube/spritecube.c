@@ -194,17 +194,15 @@ void update_projection_view() {
 }
 
 #define LINE_WIDTH 1.0f
-static inline void draw_line(vec3f_t *ac, vec3f_t *dc, float centerz,
+static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz,
                              pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
 
-  vec3f_t *from = ac;
-  vec3f_t *to = dc;
-
   if (from->x > to->x) {
-    from = dc;
-    to = ac;
+    vec3f_t *tmp = from;
+    from = to;
+    to = tmp;
   }
   vec3f_t direction = {to->x - from->x, to->y - from->y, to->z - from->z};
 
