@@ -193,8 +193,7 @@ void update_projection_view() {
   mat_store(&_projection_view);
 }
 
-#define LINE_WIDTH 1.f
-
+#define LINE_WIDTH 1.0f
 static inline void draw_line(vec3f_t *ac, vec3f_t *dc, float centerz,
                              pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
@@ -217,20 +216,73 @@ static inline void draw_line(vec3f_t *ac, vec3f_t *dc, float centerz,
   quad->bx = to->x;
   quad->by = to->y;
   quad->bz = to->z + centerz * 0.1;
-  quad->cx = to->x + LINE_WIDTH * direction.y;
+  quad->cx = to->x + LINE_WIDTH * XSCALE * direction.y;
 
   pvr_dr_commit(quad);
   quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
 
   // make a pointer with 32 bytes negative offset to allow correct access
   // to the second half of the quad
-  pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-  quad2ndhalf->cy = to->y - LINE_WIDTH * XSCALE * direction.x;
+  pvr_sprite_col_t *quad2ndhalf = (pvr_sprite_col_t *)((int)quad - 32);
+  quad2ndhalf->cy = to->y - LINE_WIDTH * direction.x;
   quad2ndhalf->cz = to->z + centerz * 0.1;
   quad2ndhalf->dx = from->x + LINE_WIDTH * XSCALE * direction.y;
   quad2ndhalf->dy = from->y - LINE_WIDTH * direction.x;
 
   pvr_dr_commit(quad);
+}
+
+void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1,
+                      vec3f_t *dir2, int num_lines, uint32_t color,
+                      pvr_dr_state_t *dr_state) {
+  vec3f_t step = {(max->x - min->x) / (num_lines + 1),
+                  (max->y - min->y) / (num_lines + 1),
+                  (max->z - min->z) / (num_lines + 1)};
+
+  if (color != 0) {
+    pvr_sprite_cxt_t cxt;
+    pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
+    cxt.gen.culling = PVR_CULLING_NONE | PVR_CULLING_SMALL; // disable culling for polygons facing
+                                        // away from the camera
+    pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(*dr_state);
+    pvr_sprite_compile(hdrpntr, &cxt);
+    hdrpntr->argb = color;
+    pvr_dr_commit(hdrpntr);
+  }
+  vec3f_t twolines[4] = {0};
+  vec3f_t *from_v = twolines + 0;
+  vec3f_t *to_v = twolines + 1;
+  vec3f_t *from_h = twolines + 2;
+  vec3f_t *to_h = twolines + 3;
+
+  for (int i = 1; i <= num_lines; i++) {
+
+    from_v->x = min->x + i * step.x * dir1->x;
+    from_v->y = min->y + i * step.y * dir1->y;
+    from_v->z = min->z + i * step.y * dir1->z;
+
+    to_v->x =
+        dir1->x == 0.0f ? max->x : min->x + i * step.x * dir1->x;
+    to_v->y =
+        dir1->y == 0.0f ? max->y : min->y + i * step.y * dir1->y;
+    to_v->z =
+        dir1->z == 0.0f ? max->z : min->z + i * step.z * dir1->z;
+
+    from_h->x = min->x + i * step.x * dir2->x;
+    from_h->y = min->y + i * step.y * dir2->y;
+    from_h->z = min->z + i * step.z * dir2->z;
+    to_h->x =
+        dir2->x == 0.0f ? max->x : min->x + i * step.x * dir2->x;
+    to_h->y =
+        dir2->y == 0.0f ? max->y : min->y + i * step.y * dir2->y;
+    to_h->z =
+        dir2->z == 0.0f ? max->z : min->z + i * step.z * dir2->z;
+
+    mat_transform(twolines, twolines, 4, sizeof(vec3f_t));
+    draw_line(from_v, to_v, 0, dr_state);
+    draw_line(from_h, to_h, 0, dr_state);
+  }
+  draw_line(min, max, 0, dr_state);
 }
 
 void render_wire_cube(void) {
@@ -251,15 +303,16 @@ void render_wire_cube(void) {
 
   // pvr_sprite_col_t cxt;
   // pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  cxt.gen.culling = PVR_CULLING_NONE; // disable culling for polygons facing
-                                      // away from the camera
+  cxt.gen.culling =
+      PVR_CULLING_NONE | PVR_CULLING_SMALL; // disable culling for polygons
+                                            // facing away from the camera
 
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
   pvr_sprite_compile(&hdr, &cxt);
-  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
 
   for (int i = 0; i < 6; i++) {
+    pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
     hdr.argb = specular_side_colors[i];
     *hdrpntr = hdr;
     pvr_dr_commit(hdrpntr);
@@ -275,6 +328,40 @@ void render_wire_cube(void) {
     draw_line(dc, cc, centerz, &dr_state);
     draw_line(ac, bc, centerz, &dr_state);
   }
+
+  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
+  vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
+
+#define WIREFRAME_GRID_SIZE 16
+
+  render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[0], &dr_state);
+
+  render_wire_grid(cube_vertices + 4, cube_vertices + 7, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[1], &dr_state);
+
+  // wiredir1.x = 0;
+  // wiredir2.y = 0;
+  wiredir2.y = 0;
+  wiredir2.z = 1;
+  render_wire_grid(cube_vertices + 0, cube_vertices + 4, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[5], &dr_state);
+  render_wire_grid(cube_vertices + 1, cube_vertices + 5, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[4], &dr_state);
+
+  wiredir1.x = 0;
+  wiredir1.z = 1;
+  wiredir2.z = 0;
+  wiredir2.y = 1;
+  render_wire_grid(cube_vertices + 4, cube_vertices + 3, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[3], &dr_state);
+
+  render_wire_grid(cube_vertices + 6, cube_vertices + 1, &wiredir1, &wiredir2,
+                   WIREFRAME_GRID_SIZE, specular_side_colors[2], &dr_state);
+  // render_wire_grid(cube_vertices + 6, cube_vertices + 1, &wiredir1,
+  // &wiredir2, 10,
+  //                  specular_side_colors[0], &dr_state);
+
   pvr_dr_finish();
 }
 
@@ -387,13 +474,13 @@ int update_state() {
 
   // Button controls for rotation speed
   if (state->buttons & CONT_X)
-    cube_state.speed.x += 0.001f;
-  if (state->buttons & CONT_Y)
-    cube_state.speed.x -= 0.001f;
-  if (state->buttons & CONT_A)
     cube_state.speed.y += 0.001f;
   if (state->buttons & CONT_B)
     cube_state.speed.y -= 0.001f;
+  if (state->buttons & CONT_A)
+    cube_state.speed.x += 0.001f;
+  if (state->buttons & CONT_Y)
+    cube_state.speed.x -= 0.001f;
 
   if (state->buttons & CONT_DPAD_LEFT) {
     cube_state = (struct cube){0};
@@ -453,7 +540,8 @@ int main(int argc, char *argv[]) {
 
       0,             // No DMA
       SUPERSAMPLING, //  Set horisontal FSAA
-      0              // Translucent Autosort enabled.
+      0,             // Translucent Autosort enabled.
+      1              // Extra OPBs
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
@@ -497,18 +585,18 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
     vid_border_color(0, 0, 255);
 #endif
-    if (!keep_running) {
-      pvr_stats_t stats;
-      pvr_get_stats(&stats);
-      printf("Last frame stats:\n"
-             "frame_count: %lu\n"
-             "rnd_last_time: %lu\n"
-             "vtx_buffer_used: %lu\n"
-             "vtx_buffer_used_max: %lu\n"
-             "frame_rate %f\n",
-             stats.frame_count, stats.rnd_last_time, stats.vtx_buffer_used,
-             stats.vtx_buffer_used_max, stats.frame_rate);
-    }
+    // if (!keep_running) {
+    //   pvr_stats_t stats;
+    //   pvr_get_stats(&stats);
+    //   printf("Last frame stats:\n"
+    //          "frame_count: %lu\n"
+    //          "rnd_last_time: %lu\n"
+    //          "vtx_buffer_used: %lu\n"
+    //          "vtx_buffer_used_max: %lu\n"
+    //          "frame_rate %f\n",
+    //          stats.frame_count, stats.rnd_last_time, stats.vtx_buffer_used,
+    //          stats.vtx_buffer_used_max, stats.frame_rate);
+    // }
     pvr_scene_finish();
   }
 
