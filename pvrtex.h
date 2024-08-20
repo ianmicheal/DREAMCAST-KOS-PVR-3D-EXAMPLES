@@ -27,8 +27,8 @@ typedef struct {
       uint32_t : 27;
     };
   } flags;
-  uint16_t bytewidth;
-  uint16_t byteheight;
+  uint16_t width;
+  uint16_t height;
   pvr_ptr_t ptr;
 } dttex_info_t;
 
@@ -58,8 +58,8 @@ int load_texture(const char *filename, dttex_info_t *texinfo) {
     texinfo->flags.palettised = fDtIsPalettized(&texinfo->hdr);
     texinfo->flags.strided = fDtIsStrided(&texinfo->hdr);
     texinfo->flags.twiddled = fDtIsTwiddled(&texinfo->hdr);
-    texinfo->bytewidth = fDtGetPvrWidthBits(&texinfo->hdr);
-    texinfo->byteheight = fDtGetPvrHeightBits(&texinfo->hdr);
+    texinfo->width = fDtGetPvrWidth(&texinfo->hdr);
+    texinfo->height = fDtGetPvrHeight(&texinfo->hdr);
 
     texinfo->pvrformat = texinfo->hdr.pvr_type & 0xFFC00000;
 

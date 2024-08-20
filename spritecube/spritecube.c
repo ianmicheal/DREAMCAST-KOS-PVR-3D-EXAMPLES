@@ -38,18 +38,9 @@
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
 
-#include "../cube.h"        /* Cube vertices and side strips layout */
-#include "../perspective.h" /* Perspective projection matrix functions */
-#include "../pvrtex.h"      /* texture management, single header code */
 
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
-
-#define DEFAULT_FOV 45.0f
-#define ZOOM_SPEED 0.3f
-#define MODEL_SCALE 3.0f
-#define MIN_ZOOM -10.0f
-#define MAX_ZOOM 15.0f
 
 #define SUPERSAMPLING 1
 #if SUPERSAMPLING == 1
@@ -59,6 +50,19 @@
 #endif
 
 #define DEBUG
+
+#include "../cube.h"        /* Cube vertices and side strips layout */
+#include "../perspective.h" /* Perspective projection matrix functions */
+#include "../pvrtex.h"      /* texture management, single header code */
+
+
+#define DEFAULT_FOV 45.0f
+#define ZOOM_SPEED 0.3f
+#define MODEL_SCALE 3.0f
+#define MIN_ZOOM -10.0f
+#define MAX_ZOOM 15.0f
+
+
 
 typedef enum { WIREFRAME, TEXTURED } render_mode_e;
 
@@ -181,7 +185,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
 }
 
 void render_wire_cube(void) {
-  mat_load(&_projection_view);
+  mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
@@ -261,7 +265,7 @@ void render_wire_cube(void) {
 }
 
 void render_txr_cube(void) {
-  mat_load(&_projection_view);
+  mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
@@ -274,8 +278,8 @@ void render_txr_cube(void) {
   pvr_dr_state_t dr_state;
 
   pvr_sprite_cxt_t cxt;
-  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB4444,
-                     texture256.bytewidth, texture256.byteheight,
+  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
+                     texture256.width, texture256.height,
                      texture256.ptr, PVR_FILTER_BILINEAR);
 
   // pvr_sprite_col_t cxt;
@@ -334,7 +338,7 @@ static inline void cube_startpos() {
   cube_state.pos.z = (MAX_ZOOM + MIN_ZOOM) / 2.0f;
   cube_state.rot.x = 0.5;
   cube_state.rot.y = 0.5;
-  update_projection_view(fovy);
+  updatestored_projection_view(fovy);
 }
 
 int update_state() {
@@ -397,11 +401,11 @@ int update_state() {
 
   if (state->buttons & CONT_DPAD_DOWN) {
     fovy -= 1.0f;
-    update_projection_view(fovy);
+    updatestored_projection_view(fovy);
   }
   if (state->buttons & CONT_DPAD_UP) {
     fovy += 1.0f;
-    update_projection_view(fovy);
+    updatestored_projection_view(fovy);
   }
   MAPLE_FOREACH_END()
 

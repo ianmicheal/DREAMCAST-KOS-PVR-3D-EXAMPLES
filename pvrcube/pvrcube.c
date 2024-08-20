@@ -59,15 +59,15 @@ static float fovy = DEFAULT_FOV;
 static dttex_info_t texture;
 
 static inline void init_poly_context(pvr_poly_cxt_t *cxt) {
-  pvr_poly_cxt_txr(cxt, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB4444, texture.bytewidth,
-                   texture.byteheight, texture.ptr, PVR_FILTER_BILINEAR);
+  pvr_poly_cxt_txr(cxt, PVR_LIST_TR_POLY, texture.pvrformat, texture.width,
+                   texture.height, texture.ptr, PVR_FILTER_BILINEAR);
   cxt->gen.culling = PVR_CULLING_NONE; // disable culling for polygons facing
                                        // away from the camera
   cxt->gen.specular = PVR_SPECULAR_ENABLE;
 }
 
 void render_cube(void) {
-  mat_load(&_projection_view);
+  mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
   mat_rotate_x(cube_state.rot.x);
@@ -112,7 +112,7 @@ static inline void cube_startpos() {
   cube_state.pos.z = (MAX_ZOOM + MIN_ZOOM) / 2.0f;
   cube_state.rot.x = 0.5;
   cube_state.rot.y = 0.5;
-  update_projection_view(fovy);
+  updatestored_projection_view(fovy);
 }
 
 
@@ -164,11 +164,11 @@ int update_state() {
   }
   if (state->buttons & CONT_DPAD_DOWN) {
     fovy -= 1.0f;
-    update_projection_view(fovy);
+    updatestored_projection_view(fovy);
   }
   if (state->buttons & CONT_DPAD_UP) {
     fovy += 1.0f;
-    update_projection_view(fovy);
+    updatestored_projection_view(fovy);
   }
 
   if (state->buttons & CONT_DPAD_RIGHT) {
