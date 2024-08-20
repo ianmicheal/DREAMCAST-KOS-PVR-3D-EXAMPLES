@@ -1,4 +1,4 @@
-KOS_CFLAGS+= -g -std=c99 -Og
+KOS_CFLAGS+= -g -std=c99 -Og -I$(KOS_BASE)/utils
 TARGET = spritecube.elf
 OBJS = spritecube.o 
 
