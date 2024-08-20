@@ -14,7 +14,29 @@ rm-elf:
 $(TARGET): $(OBJS) romdisk.o
 	kos-c++ -o $(TARGET) $(OBJS)romdisk.o -lpng -ljpeg -lkmg -lz -lkosutils -lm
 
-romdisk.img:
+
+DTTEXTURES:=$(shell find assets/texture -name '*.png'| sed -e 's,assets/\(.*\)/\([a-z_A-Z0-9]*\).png,romdisk/\1/\2.dt,g')
+$(info $(DTTEXTURES))
+
+TEXDIR_PAL4=romdisk/texture/pal4
+$(TEXDIR_PAL4):
+	mkdir -p $@
+
+$(TEXDIR_PAL4)/%.dt: assets/texture/pal4/%.png $(TEXDIR_PAL4)
+	pvrtex -f PAL4BPP -c -i $< -o $@
+
+TEXDIR_PAL8=romdisk/texture/pal8
+$(TEXDIR_PAL8):
+	mkdir -p $@
+
+TEXDIR_RGB565_VQ_TW=romdisk/texture/rgb565_vq_tw
+$(TEXDIR_RGB565_VQ_TW):
+	mkdir -p $@
+
+$(TEXDIR_RGB565_VQ_TW)/%.dt: assets/texture/rgb565_vq_tw/%.png $(TEXDIR_RGB565_VQ_TW)
+	pvrtex -f RGB565 -c -i $< -o $@
+
+romdisk.img: $(DTTEXTURES)
 	$(KOS_GENROMFS) -f romdisk.img -d romdisk -v
 
 romdisk.o: romdisk.img

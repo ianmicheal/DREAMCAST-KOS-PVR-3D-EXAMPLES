@@ -1,19 +1,19 @@
 #/********************************************************************************************/
-#/* KallistiOS Direct PVR API:2.0  PVR TEXTURE CUBE WITH ZOOM AND ROTATION  V1               */
+#/* KallistiOS Direct PVR API:2.0  Perlin 2d noise example                                   */
 #/********************************************************************************************/
 #/********************************************************************************************/
-#/* KallistiOS Direct PVR API:2.0  PVR TEXTURE CUBE WITH 6 TEXTURES: ZOOM AND ROTATION, V2.0 */
+#/*                                                                                          */
 #/********************************************************************************************/
 #/********************************************************************************************/
-#/* Name:     cube6.c                                                                        */
-#/* Title:    PVR TEXTURE CUBE WITH 6 TEXTURES: ZOOM AND ROTATION, V2.0 Kos Example          */
+#/* Name:     main.c                                                                         */
+#/* Title:    Perlin 2d noise example, V1.0 Kos Example                                      */
 #/* Author:   (c)Ian Micheal                                                                 */
 #/* Created:  08/05/24                                                                       */
 #/*                                                                                          */
-#/* Version:  2.0                                                                            */
-#/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR |                                          */
+#/* Version:  1.0                                                                            */
+#/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR | Perlin 2d noise example                  */
 #/*                                                                                          */
-#/* Description: 6 Textures one each cube face                                               */
+#/* Description: perlin 2d noise example                                                     */
 #/* The purpose of this example is to show the use of only the KOSPVR API to do 3D           */
 #/* And commented so anyone who knows OpenGL can use the DIRECT NO LAYER KOSPVR API.         */
 #/* History: version 2                                                                       */
@@ -26,8 +26,8 @@
 #/********************************************************************************************/ 
 
 KOS_CFLAGS+= -g -std=c99 
-TARGET = pvrcube.elf
-OBJS = 6cube.o 
+TARGET = perlin2d.elf
+OBJS = perlin.o fontnew.o main.o  
 
 all: rm-elf $(TARGET)
 
