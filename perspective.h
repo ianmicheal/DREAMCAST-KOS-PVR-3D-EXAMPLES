@@ -10,7 +10,7 @@
 #endif
 
 matrix_t stored_projection_view __attribute__((aligned(32))) = {0};
-void updatestored_projection_view(float fovy) {
+void update_projection_view(float fovy) {
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);

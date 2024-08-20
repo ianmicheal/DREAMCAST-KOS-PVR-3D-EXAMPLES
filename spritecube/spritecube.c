@@ -338,7 +338,7 @@ static inline void cube_startpos() {
   cube_state.pos.z = (MAX_ZOOM + MIN_ZOOM) / 2.0f;
   cube_state.rot.x = 0.5;
   cube_state.rot.y = 0.5;
-  updatestored_projection_view(fovy);
+  update_projection_view(fovy);
 }
 
 int update_state() {
@@ -401,11 +401,11 @@ int update_state() {
 
   if (state->buttons & CONT_DPAD_DOWN) {
     fovy -= 1.0f;
-    updatestored_projection_view(fovy);
+    update_projection_view(fovy);
   }
   if (state->buttons & CONT_DPAD_UP) {
     fovy += 1.0f;
-    updatestored_projection_view(fovy);
+    update_projection_view(fovy);
   }
   MAPLE_FOREACH_END()
 
