@@ -4,28 +4,11 @@
 /********************************************************************************************/
 /********************************************************************************************/
 /* Name:     pngzoom .c */
-/* Title:    PVR TEXTURE CUBE WITH ZOOM AND ROTATION Kos Example */
-/* Author:   (c)Ian Micheal */
+/* Title:    
+/* Author:   
 /* Created:   05/08/24 */
 /*                                                                                          */
 /* Version:  1.0 */
-/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR | */
-/*                                                                                          */
-/* Description: */
-/* The purpose of this example is to show the use of only the KOSPVR API to do
- * 3D matching  */
-/* And commented so anyone that knows opengl can use DIRECT NO LAYER KOSPVR API
- */
-/* History: version 1 */
-/********************************************************************************************/
-/********************************************************************************************/
-/*        >>>  Help and code examples and advice these people where invaluable
- * <<<         */
-/*     Mvp's:  dRxL with mat_perspective_fov and explaining to me the concepts
- */
-/*     Mvp's:  Bruce tested and found both annoying bugs and texture distortion.
- */
-/*                                                                                          */
 /********************************************************************************************/
 
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
@@ -106,7 +89,7 @@ void render_cube(void) {
   pvr_dr_finish();
 }
 
-static inline void cube_startpos() {
+static inline void cube_reset_state() {
   cube_state = (struct cube){0};
   fovy = DEFAULT_FOV;
   cube_state.pos.z = (MAX_ZOOM + MIN_ZOOM) / 2.0f;
@@ -160,7 +143,7 @@ int update_state() {
   if (state->buttons & CONT_DPAD_LEFT) {
     cube_state = (struct cube){0};
     fovy = DEFAULT_FOV;
-    cube_startpos();
+    cube_reset_state();
   }
   if (state->buttons & CONT_DPAD_DOWN) {
     fovy -= 1.0f;
@@ -220,7 +203,7 @@ int main(int argc, char *argv[]) {
     printf("Failed to load texture.\n");
     return -1;
   }
-  cube_startpos();
+  cube_reset_state();
 
   while (1) {
     if (!update_state())

@@ -57,7 +57,7 @@ struct cube {
   struct {
     float x, y;
   } speed;
-  float _filler; // Pad to 32 bytes
+  uint32_t grid_size;
 } cube_state __attribute__((aligned(32))) = {0};
 
 const float cube_tex_coords[4][2] = {

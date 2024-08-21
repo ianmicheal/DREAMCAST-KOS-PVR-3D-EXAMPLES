@@ -88,10 +88,10 @@ int load_texture(const char *filename, dttex_info_t *texinfo) {
  *
  * @param filename The filename of the palette
  * @param offset The offset to load the palette into
- * @return int 0 on success, -1 on failure
+ * @return int 1 on success, 0 on failure
  */
-int load_palette(const char *filename, size_t offset) {
-  int success = 0;
+int load_palette(const char *filename, int fmt, size_t offset) {
+  int success = 1;
 
   struct {
     char fourcc[4];
@@ -103,13 +103,14 @@ int load_palette(const char *filename, size_t offset) {
     fp = fopen(filename, "rb");
     if (fp == NULL) {
       printf("Error: fopen %s failed, %s\n", filename, strerror(errno));
-      success = -1;
+      success = 0;
       break;
     }
     fread(&palette_hdr, sizeof(palette_hdr), 1, fp);
     uint32_t colors[palette_hdr.colors];
     fread(&colors, sizeof(uint32_t), palette_hdr.colors, fp);
 
+    pvr_set_pal_format(fmt);
     for (size_t i = 0; i < palette_hdr.colors; i++) {
       pvr_set_pal_entry(i + offset, colors[i]);
     }
