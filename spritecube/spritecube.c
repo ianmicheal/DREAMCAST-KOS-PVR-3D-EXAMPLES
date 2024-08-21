@@ -610,24 +610,24 @@ int main(int argc, char *argv[]) {
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
-  if (!load_texture("/rd/texture/rgb565_vq_tw/dc.dt", &texture256)) {
+  if (!pvrtex_load("/rd/texture/rgb565_vq_tw/dc.dt", &texture256)) {
     printf("Failed to load texture256.\n");
     return -1;
   }
-  if (!load_texture("/rd/texture/pal8/dc_128sq_256colors.dt", &texture128)) {
+  if (!pvrtex_load("/rd/texture/pal8/dc_128sq_256colors.dt", &texture128)) {
     printf("Failed to load texture128.\n");
     return -1;
   }
-  if (!load_palette("/rd/texture/pal8/dc_128sq_256colors.dt.pal",
+  if (!pvrtex_load_palette("/rd/texture/pal8/dc_128sq_256colors.dt.pal",
                     PVR_PAL_ARGB8888, 256)) {
     printf("Failed to load palette.\n");
     return -1;
   }
-  if (!load_texture("/rd/texture/pal4/dc_64sq_16colors.dt", &texture64)) {
+  if (!pvrtex_load("/rd/texture/pal4/dc_64sq_16colors.dt", &texture64)) {
     printf("Failed to load texture64.\n");
     return -1;
   }
-  if (!load_palette("/rd/texture/pal4/dc_64sq_16colors.dt.pal",
+  if (!pvrtex_load_palette("/rd/texture/pal4/dc_64sq_16colors.dt.pal",
                     PVR_PAL_ARGB8888, 0)) {
     printf("Failed to load palette.\n");
     return -1;
@@ -689,7 +689,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Cleaning up\n");
-  unload_texture(&texture256);
+  pvrtex_unload(&texture256);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what dcload
                   // and friends expect it to be Run the main application here;
