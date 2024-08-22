@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
 
-  if (!load_texture("/rd/texture/rgb565_vq_tw/dc.dt", &texture)) {
+  if (!pvrtex_load("/rd/texture/rgb565_vq_tw/dc.dt", &texture)) {
     printf("Failed to load texture.\n");
     return -1;
   }
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Cleaning up\n");
-  unload_texture(&texture);
+  pvrtex_unload(&texture);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what dcload
                   // and friends expect it to be Run the main application here;

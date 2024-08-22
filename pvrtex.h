@@ -2,6 +2,7 @@
 #define PVTEX_H
 
 #include <dc/pvr.h>
+#include <errno.h>
 #include <pvrtex/file_dctex.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -9,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 typedef fDtHeader dt_header_t;
 
@@ -39,7 +39,7 @@ typedef struct {
  * @param texinfo The texture texinfo struct
  * @return int 1 on success, 0 on failure
  */
-int load_texture(const char *filename, dttex_info_t *texinfo) {
+int pvrtex_load(const char *filename, dttex_info_t *texinfo) {
   int success = 1;
   FILE *fp = NULL;
   do {
@@ -85,14 +85,22 @@ int load_texture(const char *filename, dttex_info_t *texinfo) {
 
 /**
  * @brief Load a palette from a file
- *
  * @param filename The filename of the palette
- * @param offset The offset to load the palette into
+ * @param fmt The format of the palette
+ * @param offset The offset to load the palette
  * @return int 1 on success, 0 on failure
- */
-int load_palette(const char *filename, int fmt, size_t offset) {
-  int success = 1;
+ * @note Valid format defines are:
 
+ * - PVR_PAL_ARGB8888: 32-bit ARGB
+
+ * - PVR_PAL_ARGB4444: 16-bit ARGB
+
+ * - PVR_PAL_RGB565: 16-bit RGB
+
+ * - PVR_PAL_ARGB1555: 16-bit ARGB 
+ */
+int pvrtex_load_palette(const char *filename, int fmt, size_t offset) {
+  int success = 1;
   struct {
     char fourcc[4];
     size_t colors;
@@ -112,7 +120,26 @@ int load_palette(const char *filename, int fmt, size_t offset) {
 
     pvr_set_pal_format(fmt);
     for (size_t i = 0; i < palette_hdr.colors; i++) {
-      pvr_set_pal_entry(i + offset, colors[i]);
+      uint32_t color = colors[i];  // format 0xAARRGGBB
+      switch (fmt) {
+        case PVR_PAL_ARGB8888:
+          break;
+        case PVR_PAL_ARGB4444:
+          color = ((color & 0xF0000000) >> 10 | (color & 0x00F00000) >> 10) | ((color & 0x0000F000) >> 8) |
+                  ((color & 0x000000F0) >> 4);
+          break;
+        case PVR_PAL_RGB565:
+          color = ((color & 0x00F80000) >> 8) | ((color & 0x0000FC00) >> 5) |
+                  ((color & 0x000000F8) >> 3);
+          break;
+        case PVR_PAL_ARGB1555:
+          color = ((color & 0x80000000) >> 16) | ((color & 0x00F80000) >> 9) |
+                  ((color & 0x0000F800) >> 6) | ((color & 0x000000F8) >> 3);
+          break;
+        default:
+          break;
+      }
+      pvr_set_pal_entry(i + offset, color);
     }
   } while (0);
 
@@ -127,8 +154,8 @@ int load_palette(const char *filename, int fmt, size_t offset) {
  * @param texinfo The texture texinfo struct
  * @return int 1 on success, 0 on failure
  */
-int unload_texture(dttex_info_t *texinfo) {
-    if (texinfo->ptr != NULL) {
+int pvrtex_unload(dttex_info_t *texinfo) {
+  if (texinfo->ptr != NULL) {
     pvr_mem_free(texinfo->ptr);
     texinfo->ptr = NULL;
     return 1;

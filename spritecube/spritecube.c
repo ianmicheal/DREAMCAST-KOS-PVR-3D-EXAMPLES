@@ -47,7 +47,8 @@
 #define XSCALE 1.0f
 #endif
 
-#define DEBUG
+// #define DEBUG
+#define FREAMETIMES
 
 #include "../cube.h"        /* Cube vertices and side strips layout */
 #include "../perspective.h" /* Perspective projection matrix functions */
@@ -61,7 +62,7 @@
 
 #define WIREFRAME_MIN_GRID_SIZE 0
 #define WIREFRAME_MAX_GRID_SIZE 12
-#define WIREFRAME_GRID_SIZE_STEP 4
+#define WIREFRAME_GRID_SIZE_STEP 6
 
 typedef enum {
   TEXTURED_TR,
@@ -373,18 +374,19 @@ void render_cubes_cube() {
 
   pvr_sprite_cxt_t cxt;
 
-  uint32_t sqrt_cubes = 8;
+  uint32_t cuberoot_cubes = 5;
 
   if (render_mode == CUBES_CUBE_MAX) {
-    sqrt_cubes = 12;
+    cuberoot_cubes = 16;
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture64.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
         texture64.width, texture64.height, texture64.ptr, PVR_FILTER_BILINEAR);
 
   } else {
-    pvr_sprite_cxt_txr(
-        &cxt, PVR_LIST_OP_POLY, texture128.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
-        texture128.width, texture128.height, texture128.ptr, PVR_FILTER_BILINEAR);
+    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,
+                       texture128.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
+                       texture128.width, texture128.height, texture128.ptr,
+                       PVR_FILTER_BILINEAR);
   }
 
   // cxt.gen.culling = PVR_CULLING_CCW;
@@ -396,13 +398,17 @@ void render_cubes_cube() {
   pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
   hdr.argb = 0x7FFFFFFF;
 
+  *hdrpntr = hdr;
+  // hdrpntr->oargb = cube_side_colors[i];
+  pvr_dr_commit(hdrpntr);
+
   vec3f_t cube_min = cube_vertices[6];
   vec3f_t cube_max = cube_vertices[3];
 
   vec3f_t cube_step = {
-      (cube_max.x - cube_min.x) / sqrt_cubes,
-      (cube_max.y - cube_min.y) / sqrt_cubes,
-      (cube_max.z - cube_min.z) / sqrt_cubes,
+      (cube_max.x - cube_min.x) / cuberoot_cubes,
+      (cube_max.y - cube_min.y) / cuberoot_cubes,
+      (cube_max.z - cube_min.z) / cuberoot_cubes,
   };
 
   vec3f_t cube_size = {
@@ -411,9 +417,9 @@ void render_cubes_cube() {
       cube_step.z * 0.75f,
   };
 
-  for (int cx = 0; cx < sqrt_cubes; cx++) {
-    for (int cy = 0; cy < sqrt_cubes; cy++) {
-      for (int cz = 0; cz < sqrt_cubes; cz++) {
+  for (int cx = 0; cx < cuberoot_cubes; cx++) {
+    for (int cy = 0; cy < cuberoot_cubes; cy++) {
+      for (int cz = 0; cz < cuberoot_cubes; cz++) {
         vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
                             cube_min.y + cube_step.y * (float)cy,
                             cube_min.z + cube_step.z * (float)cz};
@@ -440,9 +446,6 @@ void render_cubes_cube() {
                       sizeof(vec3f_t));
 
         for (int i = 0; i < 6; i++) {
-          *hdrpntr = hdr;
-          hdrpntr->oargb = cube_side_colors[i];
-          pvr_dr_commit(hdrpntr);
           vec3f_t *ac = tverts + cube_side_strips[i][0];
           vec3f_t *bc = tverts + cube_side_strips[i][2];
           vec3f_t *cc = tverts + cube_side_strips[i][3];
@@ -601,34 +604,33 @@ int main(int argc, char *argv[]) {
   pvr_init_params_t params = {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
        PVR_BINSIZE_0},
-      1536 * 1024,
-
+      3 << 20,
       0,             // No DMA
       SUPERSAMPLING, //  Set horisontal FSAA
       0,             // Translucent Autosort enabled.
-      2              // Extra OPBs
+      3              // Extra OPBs
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
-  if (!load_texture("/rd/texture/rgb565_vq_tw/dc.dt", &texture256)) {
+  if (!pvrtex_load("/rd/texture/rgb565_vq_tw/dc.dt", &texture256)) {
     printf("Failed to load texture256.\n");
     return -1;
   }
-  if (!load_texture("/rd/texture/pal8/dc_128sq_256colors.dt", &texture128)) {
+  if (!pvrtex_load("/rd/texture/pal8/dc_128sq_256colors.dt", &texture128)) {
     printf("Failed to load texture128.\n");
     return -1;
   }
-  if (!load_palette("/rd/texture/pal8/dc_128sq_256colors.dt.pal",
-                    PVR_PAL_ARGB8888, 256)) {
+  if (!pvrtex_load_palette("/rd/texture/pal8/dc_128sq_256colors.dt.pal",
+                           PVR_PAL_RGB565, 256)) {
     printf("Failed to load palette.\n");
     return -1;
   }
-  if (!load_texture("/rd/texture/pal4/dc_64sq_16colors.dt", &texture64)) {
+  if (!pvrtex_load("/rd/texture/pal4/dc_32sq_16colors.dt", &texture64)) {
     printf("Failed to load texture64.\n");
     return -1;
   }
-  if (!load_palette("/rd/texture/pal4/dc_64sq_16colors.dt.pal",
-                    PVR_PAL_ARGB8888, 0)) {
+  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal",
+                           PVR_PAL_RGB565, 0)) {
     printf("Failed to load palette.\n");
     return -1;
   }
@@ -639,12 +641,12 @@ int main(int argc, char *argv[]) {
   while (keep_running) {
     keep_running = update_state();
 
-#ifdef DEBUG
+#ifdef FREAMETIMES
     vid_border_color(255, 0, 0);
 #endif
     pvr_wait_ready();
 
-#ifdef DEBUG
+#ifdef FREAMETIMES
     vid_border_color(0, 255, 0);
 #endif
     pvr_scene_begin();
@@ -670,26 +672,14 @@ int main(int argc, char *argv[]) {
     default:
       break;
     }
-#ifdef DEBUG
+#ifdef FREAMETIMES
     vid_border_color(0, 0, 255);
 #endif
-    // if (!keep_running) {
-    //   pvr_stats_t stats;
-    //   pvr_get_stats(&stats);
-    //   printf("Last frame stats:\n"
-    //          "frame_count: %lu\n"
-    //          "rnd_last_time: %lu\n"
-    //          "vtx_buffer_used: %lu\n"
-    //          "vtx_buffer_used_max: %lu\n"
-    //          "frame_rate %f\n",
-    //          stats.frame_count, stats.rnd_last_time, stats.vtx_buffer_used,
-    //          stats.vtx_buffer_used_max, stats.frame_rate);
-    // }
     pvr_scene_finish();
   }
 
   printf("Cleaning up\n");
-  unload_texture(&texture256);
+  pvrtex_unload(&texture256);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what dcload
                   // and friends expect it to be Run the main application here;
