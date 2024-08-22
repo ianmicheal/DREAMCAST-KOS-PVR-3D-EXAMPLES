@@ -89,10 +89,14 @@ int pvrtex_load(const char *filename, dttex_info_t *texinfo) {
  * @param fmt The format of the palette
  * @param offset The offset to load the palette
  * @return int 1 on success, 0 on failure
- * @note format defines are:
+ * @note Valid format defines are:
+
  * - PVR_PAL_ARGB8888: 32-bit ARGB
+
  * - PVR_PAL_ARGB4444: 16-bit ARGB
+
  * - PVR_PAL_RGB565: 16-bit RGB
+
  * - PVR_PAL_ARGB1555: 16-bit ARGB 
  */
 int pvrtex_load_palette(const char *filename, int fmt, size_t offset) {
