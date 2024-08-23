@@ -190,10 +190,8 @@ void render_wire_cube(void) {
   }
   render_wire_grid(cube_vertices + 1, cube_vertices + 5, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[4], &dr_state);
-  wiredir1.x = 0;
-  wiredir1.z = 1;
-  wiredir2.z = 0;
-  wiredir2.y = 1;
+  wiredir1.x = 0; wiredir1.z = 1;
+  wiredir2.z = 0; wiredir2.y = 1;
   render_wire_grid(cube_vertices + 4, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[3], &dr_state);
   render_wire_grid(cube_vertices + 6, cube_vertices + 1, &wiredir1, &wiredir2,
@@ -271,7 +269,7 @@ void render_cubes_cube() {
   pvr_sprite_cxt_t cxt;
   uint32_t cuberoot_cubes = 8;
   if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 16;
+    cuberoot_cubes = 17;
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
@@ -300,10 +298,10 @@ void render_cubes_cube() {
       cube_step.z * 0.75f,
   };
   for (int cx = 0;
-       cx < cuberoot_cubes + (render_mode == CUBES_CUBE_MAX ? 1 : 0); cx++) {
+       cx < cuberoot_cubes; cx++) {
     for (int cy = 0;
-         cy < cuberoot_cubes + (render_mode == CUBES_CUBE_MAX ? 1 : 0); cy++) {
-      for (int cz = 0; cz < cuberoot_cubes; cz++) {
+         cy < cuberoot_cubes; cy++) {
+      for (int cz = 0; cz < cuberoot_cubes - (render_mode == CUBES_CUBE_MAX ? 1 : 0); cz++) { // can only render 17x17x16 cubes
         vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
                             cube_min.y + cube_step.y * (float)cy,
                             cube_min.z + cube_step.z * (float)cz};
@@ -398,12 +396,10 @@ int update_state() {
   }
   // Analog stick for X and Y movement
   if (abs(state->joyx) > 16) {
-    cube_state.pos.x +=
-        (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
+    cube_state.pos.x += (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
   }
   if (abs(state->joyy) > 16) {
-    cube_state.pos.y += (state->joyy / 32768.0f) *
-                        20.5f; // Increased sensitivity and inverted Y
+    cube_state.pos.y += (state->joyy / 32768.0f) * 20.5f; // Increased sensitivity and inverted Y
   }
   // Trigger handling for zooming
   if (state->ltrig > 16) { // Left trigger to zoom out
