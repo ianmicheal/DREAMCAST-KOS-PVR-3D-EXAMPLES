@@ -1,3 +1,5 @@
+/** Various examples of sprites based rendering of cubes and wireframes on the 
+ * Dreamcast using KallistiOS. By Daniel Fairchild, aka dRxL/@dfchil */
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
 #include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
@@ -143,7 +145,7 @@ void render_wire_cube(void) {
     draw_line(dc, cc, centerz, &dr_state);
     draw_line(ac, bc, centerz, &dr_state);
   }
-  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
+  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};without
   vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
   render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[0], &dr_state);
@@ -251,8 +253,10 @@ void render_cubes_cube() {
   pvr_sprite_cxt_t cxt;
   uint32_t cuberoot_cubes = 8;
   if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 15
-    ;
+    cuberoot_cubes = 15; 
+    // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
+    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disables,
+    //, this is left as an excercie for the reader ;)
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
