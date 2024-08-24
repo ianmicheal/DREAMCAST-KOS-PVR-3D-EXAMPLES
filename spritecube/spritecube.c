@@ -48,6 +48,14 @@ static dttex_info_t texture256;
 static dttex_info_t texture64;
 static dttex_info_t texture32;
 
+static inline set_cube_transform_t(){
+  mat_load(&stored_projection_view);
+  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
+  mat_rotate_x(cube_state.rot.x);
+  mat_rotate_y(cube_state.rot.y);
+}
+
 static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
@@ -116,11 +124,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
 }
 
 void render_wire_cube(void) {
-  mat_load(&stored_projection_view);
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
-  mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
+  set_cube_transform_t();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8, sizeof(vec3f_t));
   pvr_dr_state_t dr_state;
@@ -188,11 +192,7 @@ void render_wire_cube(void) {
 }
 
 void render_txr_cube(void) {
-  mat_load(&stored_projection_view);
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
-  mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
+  set_cube_transform_t();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
                 sizeof(vec3f_t));
@@ -244,34 +244,30 @@ void render_txr_cube(void) {
 }
 
 void render_cubes_cube() {
-  mat_load(&stored_projection_view);
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
-  mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
+  set_cube_transform_t();
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
+  pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
   uint32_t cuberoot_cubes = 8;
   if (render_mode == CUBES_CUBE_MAX) {
     cuberoot_cubes = 15; 
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
-    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disables,
-    //, this is left as an excercie for the reader ;)
+    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled,
+    // this is left as an excercie for the reader ;)
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
   } else {
-    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,
-                       texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
+    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
                        texture64.width, texture64.height, texture64.ptr,
                        PVR_FILTER_BILINEAR);
   }
   cxt.gen.culling = PVR_CULLING_CCW;
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
-  pvr_sprite_compile(&hdr, &cxt);
   pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  hdr.argb = 0x7FFFFFFF;
+  pvr_sprite_compile(&hdr, &cxt);
+  hdr.argb = 0xFFFFFFFF;
   *hdrpntr = hdr;
   pvr_dr_commit(hdrpntr);
   vec3f_t cube_min = cube_vertices[6];
@@ -330,7 +326,6 @@ void render_cubes_cube() {
               PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
           quad2ndhalf->cuv =
               PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
-
           pvr_dr_commit(quad);
         }
       };
