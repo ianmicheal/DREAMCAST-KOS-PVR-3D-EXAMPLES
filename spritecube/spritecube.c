@@ -145,7 +145,7 @@ void render_wire_cube(void) {
     draw_line(dc, cc, centerz, &dr_state);
     draw_line(ac, bc, centerz, &dr_state);
   }
-  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};without
+  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
   vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
   render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[0], &dr_state);
@@ -272,14 +272,10 @@ void render_cubes_cube() {
   pvr_sprite_compile(&hdr, &cxt);
   pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
   hdr.argb = 0x7FFFFFFF;
-
   *hdrpntr = hdr;
-  // hdrpntr->oargb = cube_side_colors[i];
   pvr_dr_commit(hdrpntr);
-
   vec3f_t cube_min = cube_vertices[6];
   vec3f_t cube_max = cube_vertices[3];
-
   vec3f_t cube_step = {
       (cube_max.x - cube_min.x) / cuberoot_cubes,
       (cube_max.y - cube_min.y) / cuberoot_cubes,
