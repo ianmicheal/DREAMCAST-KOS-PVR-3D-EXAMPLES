@@ -106,39 +106,26 @@ int update_state() {
     keep_running = 0;
   }
 
-  // Analog stick for X and Y movement
-  if (abs(state->joyx) > 16) {
-    cube_state.pos.x +=
-        (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
-  }
-  if (abs(state->joyy) > 16) {
-    cube_state.pos.y += (state->joyy / 32768.0f) *
-                        20.5f; // Increased sensitivity and inverted Y
-  }
-
-  // Trigger handling for zooming
-  if (state->ltrig > 16) { // Left trigger to zoom out
+  if (abs(state->joyx) > 16)
+    cube_state.pos.x += (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
+  if (abs(state->joyy) > 16)
+    cube_state.pos.y += (state->joyy / 32768.0f) * 20.5f; // Increased sensitivity and inverted Y
+  if (state->ltrig > 16) // Left trigger to zoom out
     cube_state.pos.z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
-  }
-  if (state->rtrig > 16) { // Right trigger to zoom in
+  if (state->rtrig > 16) // Right trigger to zoom in
     cube_state.pos.z += (state->rtrig / 255.0f) * ZOOM_SPEED;
-  }
-
-  // Limit the zoom range
   if (cube_state.pos.z < MIN_ZOOM)
     cube_state.pos.z = MIN_ZOOM; // Farther away
   if (cube_state.pos.z > MAX_ZOOM)
     cube_state.pos.z = MAX_ZOOM; // Closer to the screen
-
-  // Button controls for rotation speed
   if (state->buttons & CONT_X)
-    cube_state.speed.x += 0.001f;
-  if (state->buttons & CONT_Y)
-    cube_state.speed.x -= 0.001f;
-  if (state->buttons & CONT_A)
     cube_state.speed.y += 0.001f;
   if (state->buttons & CONT_B)
     cube_state.speed.y -= 0.001f;
+  if (state->buttons & CONT_A)
+    cube_state.speed.x += 0.001f;
+  if (state->buttons & CONT_Y)
+    cube_state.speed.x -= 0.001f;
 
   if (state->buttons & CONT_DPAD_LEFT) {
     cube_state = (struct cube){0};
@@ -176,13 +163,6 @@ int update_state() {
   // Apply friction
   cube_state.speed.x *= 0.99f;
   cube_state.speed.y *= 0.99f;
-
-  // If speed is very low, set it to zero to prevent unwanted rotation
-  if (ABS(cube_state.speed.x) < 0.0001f)
-    cube_state.speed.x = 0;
-  if (ABS(cube_state.speed.y) < 0.0001f)
-    cube_state.speed.x = 0;
-
   return keep_running;
 }
 

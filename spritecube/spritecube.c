@@ -379,7 +379,6 @@ int update_state() {
   } else {
     dpad_right_down = 0;
   }
-  // Analog stick for X and Y movement
   if (abs(state->joyx) > 16)
     cube_state.pos.x += (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
   if (abs(state->joyy) > 16)
@@ -388,12 +387,10 @@ int update_state() {
     cube_state.pos.z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
   if (state->rtrig > 16) // Right trigger to zoom in
     cube_state.pos.z += (state->rtrig / 255.0f) * ZOOM_SPEED;
-  // Limit the zoom range
   if (cube_state.pos.z < MIN_ZOOM)
     cube_state.pos.z = MIN_ZOOM; // Farther away
   if (cube_state.pos.z > MAX_ZOOM)
     cube_state.pos.z = MAX_ZOOM; // Closer to the screen
-  // Button controls for rotation speed
   if (state->buttons & CONT_X)
     cube_state.speed.y += 0.001f;
   if (state->buttons & CONT_B)
