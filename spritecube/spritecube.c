@@ -1,5 +1,6 @@
 /** Various examples of sprites based rendering of cubes and wireframes on the 
  * Dreamcast using KallistiOS. By Daniel Fairchild, aka dRxL, @dfchil, daniel@fairchild.dk */
+
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
 #include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
@@ -120,7 +121,12 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     draw_line(from_v, to_v, 0, dr_state);
     draw_line(from_h, to_h, 0, dr_state);
   }
-  draw_line(min, max, 0, dr_state);
+  draw_line(min, max, 0, dr_state);  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+  pvr_sprite_compile(&hdr, &cxt);
+  hdr.argb = 0xFFFFFFFF;
+  *hdrpntr = hdr;
+  pvr_dr_commit(hdrpntr);
+
 }
 
 void render_wire_cube(void) {
