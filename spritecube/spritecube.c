@@ -6,6 +6,7 @@
 #include <png/png.h> /* PNG library headers for handling PNG images */
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
+
 #define DEBUG
 #ifdef DEBUG
 #include <arch/gdb.h>
@@ -17,24 +18,19 @@
 #else
 #define XSCALE 1.0f
 #endif
-
 #define FRAMETIMES
-
 #include "../cube.h"        /* Cube vertices and side strips layout */
 #include "../perspective.h" /* Perspective projection matrix functions */
 #include "../pvrtex.h"      /* texture management, single header code */
-
 #define DEFAULT_FOV 45.0f
 #define ZOOM_SPEED 0.3f
 #define MODEL_SCALE 3.0f
 #define MIN_ZOOM -10.0f
 #define MAX_ZOOM 15.0f
-
 #define LINE_WIDTH 1.0f
-#define WIREFRAME_MIN_GRID_SIZE 0
-#define WIREFRAME_MAX_GRID_SIZE 12
-#define WIREFRAME_GRID_SIZE_STEP 6
-
+#define WIREFRAME_MIN_GRID_LINES 0
+#define WIREFRAME_MAX_GRID_LINES 12
+#define WIREFRAME_GRID_LINES_STEP 4
 typedef enum {
   TEXTURED_TR,
   CUBES_CUBE,
@@ -46,13 +42,11 @@ typedef enum {
 
 static render_mode_e render_mode = TEXTURED_TR;
 static float fovy = DEFAULT_FOV;
-
 static dttex_info_t texture256;
-static dttex_info_t texture128;
+static dttex_info_t texture64;
 static dttex_info_t texture32;
 
-static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz,
-                             pvr_dr_state_t *dr_state) {
+static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
   if (from->x > to->x) {
@@ -71,8 +65,7 @@ static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz,
   quad->cx = to->x + LINE_WIDTH * XSCALE * direction.y;
   pvr_dr_commit(quad);
   quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
-  // make a pointer with 32 bytes negative offset to allow correct access
-  // to the second half of the quad
+  // make a pointer with 32 bytes negative offset to allow correct access to the second half of the quad
   pvr_sprite_col_t *quad2ndhalf = (pvr_sprite_col_t *)((int)quad - 32);
   quad2ndhalf->cy = to->y - LINE_WIDTH * direction.x;
   quad2ndhalf->cz = to->z + centerz * 0.1;
@@ -89,8 +82,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
   if (color != 0) {
     pvr_sprite_cxt_t cxt;
     pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-    cxt.gen.culling = PVR_CULLING_NONE; // disable culling for polygons
-                                        // facing away from the camera
+    cxt.gen.culling = PVR_CULLING_NONE;
     pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(*dr_state);
     pvr_sprite_compile(hdrpntr, &cxt);
     hdrpntr->argb = color;
@@ -114,8 +106,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     to_h->x = dir2->x == 0.0f ? max->x : min->x + i * step.x * dir2->x;
     to_h->y = dir2->y == 0.0f ? max->y : min->y + i * step.y * dir2->y;
     to_h->z = dir2->z == 0.0f ? max->z : min->z + i * step.z * dir2->z;
-    mat_transform((vector_t *)twolines, (vector_t *)twolines, 4,
-                  sizeof(vec3f_t));
+    mat_transform((vector_t *)twolines, (vector_t *)twolines, 4, sizeof(vec3f_t));
     draw_line(from_v, to_v, 0, dr_state);
     draw_line(from_h, to_h, 0, dr_state);
   }
@@ -129,13 +120,11 @@ void render_wire_cube(void) {
   mat_rotate_x(cube_state.rot.x);
   mat_rotate_y(cube_state.rot.y);
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
-  mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
-                sizeof(vec3f_t));
+  mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8, sizeof(vec3f_t));
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  cxt.gen.culling = PVR_CULLING_NONE; // disable culling for polygons
-                                      // facing away from the camera
+  cxt.gen.culling = PVR_CULLING_NONE;
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
   pvr_sprite_compile(&hdr, &cxt);
@@ -162,8 +151,7 @@ void render_wire_cube(void) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 3);
-      float z_offset =
-          i * ((inner_from.x - inner_to.x) / (cube_state.grid_size + 1));
+      float z_offset = i * ((inner_from.x - inner_to.x) / (cube_state.grid_size + 1));
       inner_from.z += z_offset;
       inner_to.z += z_offset;
       render_wire_grid(&inner_from, &inner_to, &wiredir1, &wiredir2,
@@ -172,16 +160,14 @@ void render_wire_cube(void) {
   }
   render_wire_grid(cube_vertices + 4, cube_vertices + 7, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[1], &dr_state);
-  wiredir2.y = 0;
-  wiredir2.z = 1;
+  wiredir2.y = 0; wiredir2.z = 1;
   render_wire_grid(cube_vertices + 0, cube_vertices + 4, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[5], &dr_state);
   if (render_mode == DENSE_WIREFRAME) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 4);
-      float y_offset =
-          i * ((inner_to.x - inner_from.x) / (cube_state.grid_size + 1));
+      float y_offset = i * ((inner_to.x - inner_from.x) / (cube_state.grid_size + 1));
       inner_from.y += y_offset;
       inner_to.y += y_offset;
       render_wire_grid(&inner_from, &inner_to, &wiredir1, &wiredir2,
@@ -213,10 +199,8 @@ void render_txr_cube(void) {
   pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
                      texture256.width, texture256.height, texture256.ptr,
                      PVR_FILTER_BILINEAR);
-
   cxt.gen.specular = PVR_SPECULAR_ENABLE;
-  cxt.gen.culling = PVR_CULLING_NONE; // disable culling for polygons facing
-                                      // away from the camera
+  cxt.gen.culling = PVR_CULLING_NONE;
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
   pvr_sprite_compile(&hdr, &cxt);
@@ -241,8 +225,6 @@ void render_txr_cube(void) {
     quad->cx = cc->x;
     pvr_dr_commit(quad);
     quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-    // make a pointer with 32 bytes negative offset to allow correct access
-    // to the second half of the quad
     pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
     quad2ndhalf->cy = cc->y;
     quad2ndhalf->cz = cc->z;
@@ -269,24 +251,31 @@ void render_cubes_cube() {
   pvr_sprite_cxt_t cxt;
   uint32_t cuberoot_cubes = 8;
   if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 17;
+    cuberoot_cubes = 15
+    ;
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
   } else {
     pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,
-                       texture128.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
-                       texture128.width, texture128.height, texture128.ptr,
+                       texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
+                       texture64.width, texture64.height, texture64.ptr,
                        PVR_FILTER_BILINEAR);
   }
   cxt.gen.culling = PVR_CULLING_CCW;
   pvr_dr_init(&dr_state);
-  pvr_sprite_hdr_t *hdr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(hdr, &cxt);
-  hdr->argb = 0x7FFFFFFF;
-  pvr_dr_commit(hdr);
-  vec3f_t cube_min = *(cube_vertices + 6);
-  vec3f_t cube_max = *(cube_vertices + 3);
+  pvr_sprite_hdr_t hdr;
+  pvr_sprite_compile(&hdr, &cxt);
+  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+  hdr.argb = 0x7FFFFFFF;
+
+  *hdrpntr = hdr;
+  // hdrpntr->oargb = cube_side_colors[i];
+  pvr_dr_commit(hdrpntr);
+
+  vec3f_t cube_min = cube_vertices[6];
+  vec3f_t cube_max = cube_vertices[3];
+
   vec3f_t cube_step = {
       (cube_max.x - cube_min.x) / cuberoot_cubes,
       (cube_max.y - cube_min.y) / cuberoot_cubes,
@@ -297,11 +286,9 @@ void render_cubes_cube() {
       cube_step.y * 0.75f,
       cube_step.z * 0.75f,
   };
-  for (int cx = 0;
-       cx < cuberoot_cubes; cx++) {
-    for (int cy = 0;
-         cy < cuberoot_cubes; cy++) {
-      for (int cz = 0; cz < cuberoot_cubes - (render_mode == CUBES_CUBE_MAX ? 1 : 0); cz++) { // can only render 17x17x16 cubes
+  for (int cx = 0; cx < cuberoot_cubes; cx++) {
+    for (int cy = 0; cy < cuberoot_cubes; cy++) {
+      for (int cz = 0; cz < cuberoot_cubes; cz++) {
         vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
                             cube_min.y + cube_step.y * (float)cy,
                             cube_min.z + cube_step.z * (float)cz};
@@ -332,8 +319,6 @@ void render_cubes_cube() {
           quad->cx = cc->x;
           pvr_dr_commit(quad);
           quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-          // make a pointer with 32 bytes negative offset to allow correct
-          // access to the second half of the quad
           pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
           quad2ndhalf->cy = cc->y;
           quad2ndhalf->cz = cc->z;
@@ -381,9 +366,9 @@ int update_state() {
         render_mode++;
         break;
       default:
-        cube_state.grid_size += WIREFRAME_GRID_SIZE_STEP;
-        if (cube_state.grid_size > WIREFRAME_MAX_GRID_SIZE) {
-          cube_state.grid_size = WIREFRAME_MIN_GRID_SIZE;
+        cube_state.grid_size += WIREFRAME_GRID_LINES_STEP;
+        if (cube_state.grid_size > WIREFRAME_MAX_GRID_LINES) {
+          cube_state.grid_size = WIREFRAME_MIN_GRID_LINES;
           render_mode++;
           if (render_mode >= MAX_RENDERMODE) {
             render_mode = TEXTURED_TR;
@@ -395,19 +380,14 @@ int update_state() {
     dpad_right_down = 0;
   }
   // Analog stick for X and Y movement
-  if (abs(state->joyx) > 16) {
+  if (abs(state->joyx) > 16)
     cube_state.pos.x += (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
-  }
-  if (abs(state->joyy) > 16) {
+  if (abs(state->joyy) > 16)
     cube_state.pos.y += (state->joyy / 32768.0f) * 20.5f; // Increased sensitivity and inverted Y
-  }
-  // Trigger handling for zooming
-  if (state->ltrig > 16) { // Left trigger to zoom out
+  if (state->ltrig > 16) // Left trigger to zoom out
     cube_state.pos.z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
-  }
-  if (state->rtrig > 16) { // Right trigger to zoom in
+  if (state->rtrig > 16) // Right trigger to zoom in
     cube_state.pos.z += (state->rtrig / 255.0f) * ZOOM_SPEED;
-  }
   // Limit the zoom range
   if (cube_state.pos.z < MIN_ZOOM)
     cube_state.pos.z = MIN_ZOOM; // Farther away
@@ -423,7 +403,6 @@ int update_state() {
   if (state->buttons & CONT_Y)
     cube_state.speed.x -= 0.001f;
   if (state->buttons & CONT_DPAD_LEFT) {
-    // cube_state = (struct cube){0};
     fovy = DEFAULT_FOV;
     cube_reset_state();
   }
@@ -436,17 +415,10 @@ int update_state() {
     update_projection_view(fovy);
   }
   MAPLE_FOREACH_END()
-  // Apply rotation
   cube_state.rot.x += cube_state.speed.x;
   cube_state.rot.y += cube_state.speed.y;
-  // Apply friction
   cube_state.speed.x *= 0.99f;
   cube_state.speed.y *= 0.99f;
-  // If speed is very low, set it to zero to prevent unwanted rotation
-  if (abs(cube_state.speed.x) < 0.0001f)
-    cube_state.speed.x = 0;
-  if (abs(cube_state.speed.y) < 0.0001f)
-    cube_state.speed.x = 0;
   return 1;
 }
 extern uint8 romdisk[];
@@ -462,34 +434,22 @@ int main(int argc, char *argv[]) {
        PVR_BINSIZE_0},
       3 << 20,       // Vertex buffer size, 3MB
       0,             // No DMA
-      SUPERSAMPLING, //  Set horisontal FSAA
+      SUPERSAMPLING, // Set horisontal FSAA
       0,             // Translucent Autosort enabled.
       3              // Extra OPBs
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
-  if (!pvrtex_load("/rd/texture/rgb565_vq_tw/dc.dt", &texture256)) {
-    printf("Failed to load texture256.\n");
+  if (!pvrtex_load("/rd/texture/rgb565_vq_tw/dc.dt", &texture256))
     return -1;
-  }
-  if (!pvrtex_load("/rd/texture/pal8/dc_128sq_256colors.dt", &texture128)) {
-    printf("Failed to load texture128.\n");
+  if (!pvrtex_load("/rd/texture/pal8/dc_64sq_256colors.dt", &texture64))
     return -1;
-  }
-  if (!pvrtex_load_palette("/rd/texture/pal8/dc_128sq_256colors.dt.pal",
-                           PVR_PAL_RGB565, 256)) {
-    printf("Failed to load palette.\n");
+  if (!pvrtex_load_palette("/rd/texture/pal8/dc_64sq_256colors.dt.pal", PVR_PAL_RGB565, 256))
     return -1;
-  }
-  if (!pvrtex_load("/rd/texture/pal4/dc_32sq_16colors.dt", &texture32)) {
-    printf("Failed to load texture32.\n");
+  if (!pvrtex_load("/rd/texture/pal4/dc_32sq_16colors.dt", &texture32))
     return -1;
-  }
-  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal",
-                           PVR_PAL_RGB565, 0)) {
-    printf("Failed to load palette.\n");
+  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal", PVR_PAL_RGB565, 0))
     return -1;
-  }
   cube_reset_state();
   while (update_state()) {
 #ifdef FRAMETIMES
@@ -528,7 +488,8 @@ int main(int argc, char *argv[]) {
   }
   printf("Cleaning up\n");
   pvrtex_unload(&texture256);
-  pvrtex_unload(&texture128);
+  pvrtex_unload(&texture64);
+  pvrtex_unload(&texture32);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what dcload
                   // and friends expect it to be Run the main application here;
