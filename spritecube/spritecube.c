@@ -1,5 +1,5 @@
 /** Various examples of sprites based rendering of cubes and wireframes on the 
- * Dreamcast using KallistiOS. By Daniel Fairchild, aka dRxL/@dfchil */
+ * Dreamcast using KallistiOS. By Daniel Fairchild, aka dRxL, @dfchil, daniel@fairchild.dk */
 #include <dc/fmath.h> /* Fast math library headers for optimized mathematical functions */
 #include <dc/matrix.h> /* Matrix library headers for handling matrix operations */
 #include <dc/matrix3d.h> /* Matrix3D library headers for handling 3D matrix operations */
