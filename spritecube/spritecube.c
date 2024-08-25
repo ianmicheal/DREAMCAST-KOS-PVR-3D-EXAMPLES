@@ -10,12 +10,12 @@
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 #include <arch/gdb.h>
 #endif
 
-#define SUPERSAMPLING 1
+#define SUPERSAMPLING 1 // Set to 1 to enable horizontal FSAA, 0 to disable
 #if SUPERSAMPLING == 1
 #define XSCALE 2.0f
 #else
@@ -25,22 +25,22 @@
 #include "../cube.h"        /* Cube vertices and side strips layout */
 #include "../perspective.h" /* Perspective projection matrix functions */
 #include "../pvrtex.h"      /* texture management, single header code */
-#define DEFAULT_FOV 45.0f
+#define DEFAULT_FOV 75.0f // Field of view, adjust with dpad up/down
 #define ZOOM_SPEED 0.3f
 #define MODEL_SCALE 3.0f
 #define MIN_ZOOM -10.0f
 #define MAX_ZOOM 15.0f
 #define LINE_WIDTH 1.0f
-#define WIREFRAME_MIN_GRID_LINES 0
-#define WIREFRAME_MAX_GRID_LINES 12
-#define WIREFRAME_GRID_LINES_STEP 4
+#define WIREFRAME_MIN_GRID_LINES 0 
+#define WIREFRAME_MAX_GRID_LINES 10
+#define WIREFRAME_GRID_LINES_STEP 5
 typedef enum {
-  TEXTURED_TR,
-  CUBES_CUBE,
-  CUBES_CUBE_MAX,
-  SPARSE_WIREFRAME,
-  DENSE_WIREFRAME,
-  MAX_RENDERMODE
+  TEXTURED_TR,      // Textured transparent cube
+  CUBES_CUBE_MIN,   // Cube of cubes, 7x7x7 cubes, in 6 different color variations
+  CUBES_CUBE_MAX,   // Cube of cubes, 15x15x15 cubes, no color variations
+  WIREFRAME_EMPTY,  // Wireframe cube, colored wires on the sides only
+  WIREFRAME_FILLED, // Wireframe cube, as above, but with a white grid inside
+  MAX_RENDERMODE    // Not a render mode, sentinel value for end of enum
 } render_mode_e;
 
 static render_mode_e render_mode = TEXTURED_TR;
@@ -49,7 +49,7 @@ static dttex_info_t texture256;
 static dttex_info_t texture64;
 static dttex_info_t texture32;
 
-static inline set_cube_transform_t(){
+static inline void set_cube_transform_t(){
   mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
@@ -57,7 +57,134 @@ static inline set_cube_transform_t(){
   mat_rotate_y(cube_state.rot.y);
 }
 
-static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
+static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side, pvr_dr_state_t *dr_state){
+    vec3f_t *ac = tverts + cube_side_strips[side][0];
+    vec3f_t *bc = tverts + cube_side_strips[side][2];
+    vec3f_t *cc = tverts + cube_side_strips[side][3];
+    vec3f_t *dc = tverts + cube_side_strips[side][1];
+    pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(*dr_state);
+    quad->flags = PVR_CMD_VERTEX_EOL;
+    quad->ax = ac->x;
+    quad->ay = ac->y;
+    quad->az = ac->z;
+    quad->bx = bc->x;
+    quad->by = bc->y;
+    quad->bz = bc->z;
+    quad->cx = cc->x;
+    pvr_dr_commit(quad);
+    quad = (pvr_sprite_txr_t *)pvr_dr_target(*dr_state);
+/* make a pointer with 32 bytes negative offset to allow field access to the second half of the quad */
+    pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
+    quad2ndhalf->cy = cc->y;
+    quad2ndhalf->cz = cc->z;
+    quad2ndhalf->dx = dc->x;
+    quad2ndhalf->dy = dc->y;
+    quad2ndhalf->auv = PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
+    quad2ndhalf->cuv = PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
+    quad2ndhalf->buv = PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
+    pvr_dr_commit(quad);
+}
+
+void render_txr_tr_cube(void) {
+  set_cube_transform_t();
+  vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
+  mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
+                sizeof(vec3f_t));
+  pvr_dr_state_t dr_state;
+  pvr_sprite_cxt_t cxt;
+  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
+                     texture256.width, texture256.height, texture256.ptr,
+                     PVR_FILTER_BILINEAR);
+  cxt.gen.specular = PVR_SPECULAR_ENABLE;
+  cxt.gen.culling = PVR_CULLING_NONE;
+  pvr_dr_init(&dr_state);
+  pvr_sprite_hdr_t hdr;
+  pvr_sprite_compile(&hdr, &cxt);
+  hdr.argb = 0x7FFFFFFF;
+  for (int i = 0; i < 6; i++) {
+    pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+    *hdrpntr = hdr;
+    hdrpntr->oargb = cube_side_colors[i];
+    pvr_dr_commit(hdrpntr);
+    draw_textured_sprite(tverts, i, &dr_state);
+  }
+  pvr_dr_finish();
+}
+
+void render_cubes_cube() {
+  set_cube_transform_t();
+  pvr_sprite_cxt_t cxt;
+  pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
+  uint32_t cuberoot_cubes = 7;
+  if (render_mode == CUBES_CUBE_MAX) {
+    cuberoot_cubes = 15; 
+    // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
+    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled,
+    // this is left as an excercie for the reader ;)
+    pvr_sprite_cxt_txr(
+        &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
+        texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
+  } else {
+    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(0),
+                       texture64.width, texture64.height, texture64.ptr,
+                       PVR_FILTER_BILINEAR);
+    cxt.gen.specular = PVR_SPECULAR_ENABLE;
+  }
+  pvr_dr_state_t dr_state;
+  pvr_dr_init(&dr_state);
+  pvr_sprite_hdr_t hdr;
+  pvr_sprite_compile(&hdr, &cxt);
+  hdr.argb = 0xFFFFFFFF;
+  if (render_mode == CUBES_CUBE_MAX) { // use single shared header for MAX mode without specular
+    pvr_sprite_hdr_t *hdrptr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+    *hdrptr = hdr;
+    pvr_dr_commit(hdrptr);
+  }
+  vec3f_t cube_min = cube_vertices[6];
+  vec3f_t cube_max = cube_vertices[3];
+  vec3f_t cube_step = {
+      (cube_max.x - cube_min.x) / cuberoot_cubes,
+      (cube_max.y - cube_min.y) / cuberoot_cubes,
+      (cube_max.z - cube_min.z) / cuberoot_cubes,
+  };
+  vec3f_t cube_size = {
+      cube_step.x * 0.75f,
+      cube_step.y * 0.75f,
+      cube_step.z * 0.75f,
+  };
+  for (int cx = 0; cx < cuberoot_cubes; cx++) {
+    for (int cy = 0; cy < cuberoot_cubes; cy++) {
+      for (int cz = 0; cz < cuberoot_cubes; cz++) {
+        if (render_mode == CUBES_CUBE_MIN) {
+          pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+          *hdrpntr = hdr;
+          hdrpntr->oargb = cube_side_colors[(cx + cy + cz) % 6];
+          pvr_dr_commit(hdrpntr);
+        }
+        vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
+                            cube_min.y + cube_step.y * (float)cy,
+                            cube_min.z + cube_step.z * (float)cz};
+        vec3f_t tverts[8] __attribute__((aligned(32))) = {
+            {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z + cube_size.z},
+            {.x = cube_pos.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z + cube_size.z},
+            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y, .z = cube_pos.z + cube_size.z},
+            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z + cube_size.z},
+            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y, .z = cube_pos.z},
+            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z},
+            {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z},
+            {.x = cube_pos.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z}};
+        mat_transform((vector_t *)&tverts, (vector_t *)&tverts, 8,
+                      sizeof(vec3f_t));
+        for (int i = 0; i < 6; i++) {
+          draw_textured_sprite(tverts, i, &dr_state);
+        }
+      };
+    }
+  }
+  pvr_dr_finish();
+}
+
+static inline void draw_sprite_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
   if (from->x > to->x) {
@@ -76,7 +203,6 @@ static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_s
   quad->cx = to->x + LINE_WIDTH * XSCALE * direction.y;
   pvr_dr_commit(quad);
   quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
-  // make a pointer with 32 bytes negative offset to allow correct access to the second half of the quad
   pvr_sprite_col_t *quad2ndhalf = (pvr_sprite_col_t *)((int)quad - 32);
   quad2ndhalf->cy = to->y - LINE_WIDTH * direction.x;
   quad2ndhalf->cz = to->z + centerz * 0.1;
@@ -118,15 +244,10 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     to_h->y = dir2->y == 0.0f ? max->y : min->y + i * step.y * dir2->y;
     to_h->z = dir2->z == 0.0f ? max->z : min->z + i * step.z * dir2->z;
     mat_transform((vector_t *)twolines, (vector_t *)twolines, 4, sizeof(vec3f_t));
-    draw_line(from_v, to_v, 0, dr_state);
-    draw_line(from_h, to_h, 0, dr_state);
+    draw_sprite_line(from_v, to_v, 0, dr_state);
+    draw_sprite_line(from_h, to_h, 0, dr_state);
   }
-  draw_line(min, max, 0, dr_state);  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(&hdr, &cxt);
-  hdr.argb = 0xFFFFFFFF;
-  *hdrpntr = hdr;
-  pvr_dr_commit(hdrpntr);
-
+  draw_sprite_line(min, max, 0, dr_state);
 }
 
 void render_wire_cube(void) {
@@ -150,16 +271,16 @@ void render_wire_cube(void) {
     vec3f_t *cc = tverts + cube_side_strips[i][3];
     vec3f_t *dc = tverts + cube_side_strips[i][1];
     float centerz = (ac->z + bc->z + cc->z + dc->z) / 4.0f;
-    draw_line(ac, dc, centerz, &dr_state);
-    draw_line(bc, cc, centerz, &dr_state);
-    draw_line(dc, cc, centerz, &dr_state);
-    draw_line(ac, bc, centerz, &dr_state);
+    draw_sprite_line(ac, dc, centerz, &dr_state);
+    draw_sprite_line(bc, cc, centerz, &dr_state);
+    draw_sprite_line(dc, cc, centerz, &dr_state);
+    draw_sprite_line(ac, bc, centerz, &dr_state);
   }
   vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
   vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
   render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[0], &dr_state);
-  if (render_mode == DENSE_WIREFRAME) {
+  if (render_mode == WIREFRAME_FILLED) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 3);
@@ -175,7 +296,7 @@ void render_wire_cube(void) {
   wiredir2.y = 0; wiredir2.z = 1;
   render_wire_grid(cube_vertices + 0, cube_vertices + 4, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[5], &dr_state);
-  if (render_mode == DENSE_WIREFRAME) {
+  if (render_mode == WIREFRAME_FILLED) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 4);
@@ -197,162 +318,19 @@ void render_wire_cube(void) {
   pvr_dr_finish();
 }
 
-void render_txr_cube(void) {
-  set_cube_transform_t();
-  vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
-  mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
-                sizeof(vec3f_t));
-  pvr_dr_state_t dr_state;
-  pvr_sprite_cxt_t cxt;
-  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
-                     texture256.width, texture256.height, texture256.ptr,
-                     PVR_FILTER_BILINEAR);
-  cxt.gen.specular = PVR_SPECULAR_ENABLE;
-  cxt.gen.culling = PVR_CULLING_NONE;
-  pvr_dr_init(&dr_state);
-  pvr_sprite_hdr_t hdr;
-  pvr_sprite_compile(&hdr, &cxt);
-  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  hdr.argb = 0x7FFFFFFF;
-  for (int i = 0; i < 6; i++) {
-    *hdrpntr = hdr;
-    hdrpntr->oargb = cube_side_colors[i];
-    pvr_dr_commit(hdrpntr);
-    vec3f_t *ac = tverts + cube_side_strips[i][0];
-    vec3f_t *bc = tverts + cube_side_strips[i][2];
-    vec3f_t *cc = tverts + cube_side_strips[i][3];
-    vec3f_t *dc = tverts + cube_side_strips[i][1];
-    pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-    quad->flags = PVR_CMD_VERTEX_EOL;
-    quad->ax = ac->x;
-    quad->ay = ac->y;
-    quad->az = ac->z;
-    quad->bx = bc->x;
-    quad->by = bc->y;
-    quad->bz = bc->z;
-    quad->cx = cc->x;
-    pvr_dr_commit(quad);
-    quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-    pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-    quad2ndhalf->cy = cc->y;
-    quad2ndhalf->cz = cc->z;
-    quad2ndhalf->dx = dc->x;
-    quad2ndhalf->dy = dc->y;
-    quad2ndhalf->auv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
-    quad2ndhalf->cuv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
-    quad2ndhalf->buv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
-    pvr_dr_commit(quad);
-  }
-  pvr_dr_finish();
-}
-
-void render_cubes_cube() {
-  set_cube_transform_t();
-  pvr_dr_state_t dr_state;
-  pvr_sprite_cxt_t cxt;
-  pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  uint32_t cuberoot_cubes = 8;
-  if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 15; 
-    // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
-    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled,
-    // this is left as an excercie for the reader ;)
-    pvr_sprite_cxt_txr(
-        &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
-        texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
-  } else {
-    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
-                       texture64.width, texture64.height, texture64.ptr,
-                       PVR_FILTER_BILINEAR);
-  }
-  cxt.gen.culling = PVR_CULLING_CCW;
-  pvr_dr_init(&dr_state);
-  pvr_sprite_hdr_t hdr;
-  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(&hdr, &cxt);
-  hdr.argb = 0xFFFFFFFF;
-  *hdrpntr = hdr;
-  pvr_dr_commit(hdrpntr);
-  vec3f_t cube_min = cube_vertices[6];
-  vec3f_t cube_max = cube_vertices[3];
-  vec3f_t cube_step = {
-      (cube_max.x - cube_min.x) / cuberoot_cubes,
-      (cube_max.y - cube_min.y) / cuberoot_cubes,
-      (cube_max.z - cube_min.z) / cuberoot_cubes,
-  };
-  vec3f_t cube_size = {
-      cube_step.x * 0.75f,
-      cube_step.y * 0.75f,
-      cube_step.z * 0.75f,
-  };
-  for (int cx = 0; cx < cuberoot_cubes; cx++) {
-    for (int cy = 0; cy < cuberoot_cubes; cy++) {
-      for (int cz = 0; cz < cuberoot_cubes; cz++) {
-        vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
-                            cube_min.y + cube_step.y * (float)cy,
-                            cube_min.z + cube_step.z * (float)cz};
-        vec3f_t tverts[8] __attribute__((aligned(32))) = {
-            {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z + cube_size.z},
-            {.x = cube_pos.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z + cube_size.z},
-            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y, .z = cube_pos.z + cube_size.z},
-            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z + cube_size.z},
-            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y, .z = cube_pos.z},
-            {.x = cube_pos.x + cube_size.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z},
-            {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z},
-            {.x = cube_pos.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z}};
-        mat_transform((vector_t *)&tverts, (vector_t *)&tverts, 8,
-                      sizeof(vec3f_t));
-        for (int i = 0; i < 6; i++) {
-          vec3f_t *ac = tverts + cube_side_strips[i][0];
-          vec3f_t *bc = tverts + cube_side_strips[i][2];
-          vec3f_t *cc = tverts + cube_side_strips[i][3];
-          vec3f_t *dc = tverts + cube_side_strips[i][1];
-          pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-          quad->flags = PVR_CMD_VERTEX_EOL;
-          quad->ax = ac->x;
-          quad->ay = ac->y;
-          quad->az = ac->z;
-          quad->bx = bc->x;
-          quad->by = bc->y;
-          quad->bz = bc->z;
-          quad->cx = cc->x;
-          pvr_dr_commit(quad);
-          quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-          pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-          quad2ndhalf->cy = cc->y;
-          quad2ndhalf->cz = cc->z;
-          quad2ndhalf->dx = dc->x;
-          quad2ndhalf->dy = dc->y;
-          quad2ndhalf->auv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
-          quad2ndhalf->buv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
-          quad2ndhalf->cuv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
-          pvr_dr_commit(quad);
-        }
-      };
-    }
-  }
-  pvr_dr_finish();
-}
-
 static inline void cube_reset_state() {
   uint32_t grid_size = cube_state.grid_size;
   cube_state = (struct cube){0};
   cube_state.grid_size = grid_size;
   fovy = DEFAULT_FOV;
-  cube_state.pos.z = 7.0f;
+  cube_state.pos.z = 12.0f;
   cube_state.rot.x = F_PI / 4.0f;
   cube_state.rot.y = F_PI / 4.0f;
   update_projection_view(fovy);
 }
 
 static uint32_t dpad_right_down = 0;
-int update_state() {
+static inline int update_state() {
   MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
   if (state->buttons & CONT_START) {
     return 0;
@@ -362,7 +340,7 @@ int update_state() {
       dpad_right_down = 1;
       switch (render_mode) {
       case TEXTURED_TR:
-      case CUBES_CUBE:
+      case CUBES_CUBE_MIN:
       case CUBES_CUBE_MAX:
         render_mode++;
         break;
@@ -431,7 +409,7 @@ int main(int argc, char *argv[]) {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
        PVR_BINSIZE_0},
       3 << 20,       // Vertex buffer size, 3MB
-      0,             // No DMA
+      0,             // No DMA15
       SUPERSAMPLING, // Set horisontal FSAA
       0,             // Translucent Autosort enabled.
       3              // Extra OPBs
@@ -442,11 +420,11 @@ int main(int argc, char *argv[]) {
     return -1;
   if (!pvrtex_load("/rd/texture/pal8/dc_64sq_256colors.dt", &texture64))
     return -1;
-  if (!pvrtex_load_palette("/rd/texture/pal8/dc_64sq_256colors.dt.pal", PVR_PAL_RGB565, 256))
+  if (!pvrtex_load_palette("/rd/texture/pal8/dc_64sq_256colors.dt.pal", PVR_PAL_RGB565, 0))
     return -1;
   if (!pvrtex_load("/rd/texture/pal4/dc_32sq_16colors.dt", &texture32))
     return -1;
-  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal", PVR_PAL_RGB565, 0))
+  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal", PVR_PAL_RGB565, 256))
     return -1;
   cube_reset_state();
   while (update_state()) {
@@ -461,17 +439,17 @@ int main(int argc, char *argv[]) {
     switch (render_mode) {
     case TEXTURED_TR:
       pvr_list_begin(PVR_LIST_TR_POLY);
-      render_txr_cube();
+      render_txr_tr_cube();
       pvr_list_finish();
       break;
-    case DENSE_WIREFRAME:
-    case SPARSE_WIREFRAME:
+    case WIREFRAME_FILLED:
+    case WIREFRAME_EMPTY:
       pvr_list_begin(PVR_LIST_OP_POLY);
       render_wire_cube();
       pvr_list_finish();
       break;
     case CUBES_CUBE_MAX:
-    case CUBES_CUBE:
+    case CUBES_CUBE_MIN:
       pvr_list_begin(PVR_LIST_OP_POLY);
       render_cubes_cube();
       pvr_list_finish();
