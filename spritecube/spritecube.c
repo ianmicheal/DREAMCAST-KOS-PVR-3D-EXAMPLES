@@ -10,7 +10,7 @@
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 #include <arch/gdb.h>
 #endif
@@ -32,8 +32,8 @@
 #define MAX_ZOOM 15.0f
 #define LINE_WIDTH 1.0f
 #define WIREFRAME_MIN_GRID_LINES 0
-#define WIREFRAME_MAX_GRID_LINES 12
-#define WIREFRAME_GRID_LINES_STEP 4
+#define WIREFRAME_MAX_GRID_LINES 10
+#define WIREFRAME_GRID_LINES_STEP 5
 typedef enum {
   TEXTURED_TR,
   CUBES_CUBE_8,
@@ -57,7 +57,38 @@ static inline void set_cube_transform_t(){
   mat_rotate_y(cube_state.rot.y);
 }
 
-static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
+static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side, pvr_dr_state_t *dr_state){
+    vec3f_t *ac = tverts + cube_side_strips[side][0];
+    vec3f_t *bc = tverts + cube_side_strips[side][2];
+    vec3f_t *cc = tverts + cube_side_strips[side][3];
+    vec3f_t *dc = tverts + cube_side_strips[side][1];
+    pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(*dr_state);
+    quad->flags = PVR_CMD_VERTEX_EOL;
+    quad->ax = ac->x;
+    quad->ay = ac->y;
+    quad->az = ac->z;
+    quad->bx = bc->x;
+    quad->by = bc->y;
+    quad->bz = bc->z;
+    quad->cx = cc->x;
+    pvr_dr_commit(quad);
+    quad = (pvr_sprite_txr_t *)pvr_dr_target(*dr_state);
+/* make a pointer with 32 bytes negative offset to allow field access to the second half of the quad */
+    pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
+    quad2ndhalf->cy = cc->y;
+    quad2ndhalf->cz = cc->z;
+    quad2ndhalf->dx = dc->x;
+    quad2ndhalf->dy = dc->y;
+    quad2ndhalf->auv =
+        PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
+    quad2ndhalf->cuv =
+        PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
+    quad2ndhalf->buv =
+        PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
+    pvr_dr_commit(quad);
+}
+
+static inline void draw_sprite_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
   if (from->x > to->x) {
@@ -76,7 +107,6 @@ static inline void draw_line(vec3f_t *from, vec3f_t *to, float centerz, pvr_dr_s
   quad->cx = to->x + LINE_WIDTH * XSCALE * direction.y;
   pvr_dr_commit(quad);
   quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
-  // make a pointer with 32 bytes negative offset to allow correct access to the second half of the quad
   pvr_sprite_col_t *quad2ndhalf = (pvr_sprite_col_t *)((int)quad - 32);
   quad2ndhalf->cy = to->y - LINE_WIDTH * direction.x;
   quad2ndhalf->cz = to->z + centerz * 0.1;
@@ -118,10 +148,10 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     to_h->y = dir2->y == 0.0f ? max->y : min->y + i * step.y * dir2->y;
     to_h->z = dir2->z == 0.0f ? max->z : min->z + i * step.z * dir2->z;
     mat_transform((vector_t *)twolines, (vector_t *)twolines, 4, sizeof(vec3f_t));
-    draw_line(from_v, to_v, 0, dr_state);
-    draw_line(from_h, to_h, 0, dr_state);
+    draw_sprite_line(from_v, to_v, 0, dr_state);
+    draw_sprite_line(from_h, to_h, 0, dr_state);
   }
-  draw_line(min, max, 0, dr_state);
+  draw_sprite_line(min, max, 0, dr_state);
 }
 
 void render_wire_cube(void) {
@@ -145,10 +175,10 @@ void render_wire_cube(void) {
     vec3f_t *cc = tverts + cube_side_strips[i][3];
     vec3f_t *dc = tverts + cube_side_strips[i][1];
     float centerz = (ac->z + bc->z + cc->z + dc->z) / 4.0f;
-    draw_line(ac, dc, centerz, &dr_state);
-    draw_line(bc, cc, centerz, &dr_state);
-    draw_line(dc, cc, centerz, &dr_state);
-    draw_line(ac, bc, centerz, &dr_state);
+    draw_sprite_line(ac, dc, centerz, &dr_state);
+    draw_sprite_line(bc, cc, centerz, &dr_state);
+    draw_sprite_line(dc, cc, centerz, &dr_state);
+    draw_sprite_line(ac, bc, centerz, &dr_state);
   }
   vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
   vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
@@ -207,39 +237,13 @@ void render_txr_cube(void) {
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
   pvr_sprite_compile(&hdr, &cxt);
-  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
   hdr.argb = 0x7FFFFFFF;
   for (int i = 0; i < 6; i++) {
+    pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
     *hdrpntr = hdr;
     hdrpntr->oargb = cube_side_colors[i];
     pvr_dr_commit(hdrpntr);
-    vec3f_t *ac = tverts + cube_side_strips[i][0];
-    vec3f_t *bc = tverts + cube_side_strips[i][2];
-    vec3f_t *cc = tverts + cube_side_strips[i][3];
-    vec3f_t *dc = tverts + cube_side_strips[i][1];
-    pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-    quad->flags = PVR_CMD_VERTEX_EOL;
-    quad->ax = ac->x;
-    quad->ay = ac->y;
-    quad->az = ac->z;
-    quad->bx = bc->x;
-    quad->by = bc->y;
-    quad->bz = bc->z;
-    quad->cx = cc->x;
-    pvr_dr_commit(quad);
-    quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-    pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-    quad2ndhalf->cy = cc->y;
-    quad2ndhalf->cz = cc->z;
-    quad2ndhalf->dx = dc->x;
-    quad2ndhalf->dy = dc->y;
-    quad2ndhalf->auv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
-    quad2ndhalf->cuv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
-    quad2ndhalf->buv =
-        PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
-    pvr_dr_commit(quad);
+    draw_textured_sprite(tverts, i, &dr_state);
   }
   pvr_dr_finish();
 }
@@ -248,28 +252,31 @@ void render_cubes_cube() {
   set_cube_transform_t();
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  uint32_t cuberoot_cubes = 8;
+  uint32_t cuberoot_cubes = 7;
   if (render_mode == CUBES_CUBE_MAX) {
     cuberoot_cubes = 15; 
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
     // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled,
     // this is left as an excercie for the reader ;)
     pvr_sprite_cxt_txr(
-        &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(0),
+        &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
   } else {
-    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(1),
+    pvr_sprite_cxt_txr(&cxt, PVR_LIST_OP_POLY,texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(0),
                        texture64.width, texture64.height, texture64.ptr,
                        PVR_FILTER_BILINEAR);
+    cxt.gen.specular = PVR_SPECULAR_ENABLE;
   }
   pvr_dr_state_t dr_state;
   pvr_dr_init(&dr_state);
-  // pvr_sprite_hdr_t hdr;
-  pvr_sprite_hdr_t *hdr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(hdr, &cxt);
-  hdr->argb = 0xFFFFFFFF;
-  // *hdrpntr = hdr;
-  pvr_dr_commit(hdr);
+  pvr_sprite_hdr_t hdr;
+  pvr_sprite_compile(&hdr, &cxt);
+  hdr.argb = 0xFFFFFFFF;
+  if (render_mode == CUBES_CUBE_MAX) { // use single shared header for MAX mode without specular
+    pvr_sprite_hdr_t *hdrptr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+    *hdrptr = hdr;
+    pvr_dr_commit(hdrptr);
+  }
   vec3f_t cube_min = cube_vertices[6];
   vec3f_t cube_max = cube_vertices[3];
   vec3f_t cube_step = {
@@ -285,6 +292,12 @@ void render_cubes_cube() {
   for (int cx = 0; cx < cuberoot_cubes; cx++) {
     for (int cy = 0; cy < cuberoot_cubes; cy++) {
       for (int cz = 0; cz < cuberoot_cubes; cz++) {
+        if (render_mode == CUBES_CUBE_8) {
+          pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+          *hdrpntr = hdr;
+          hdrpntr->oargb = cube_side_colors[(cx + cy + cz) % 6];
+          pvr_dr_commit(hdrpntr);
+        }
         vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
                             cube_min.y + cube_step.y * (float)cy,
                             cube_min.z + cube_step.z * (float)cz};
@@ -300,33 +313,7 @@ void render_cubes_cube() {
         mat_transform((vector_t *)&tverts, (vector_t *)&tverts, 8,
                       sizeof(vec3f_t));
         for (int i = 0; i < 6; i++) {
-          vec3f_t *ac = tverts + cube_side_strips[i][0];
-          vec3f_t *bc = tverts + cube_side_strips[i][2];
-          vec3f_t *cc = tverts + cube_side_strips[i][3];
-          vec3f_t *dc = tverts + cube_side_strips[i][1];
-          pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-          quad->flags = PVR_CMD_VERTEX_EOL;
-          quad->ax = ac->x;
-          quad->ay = ac->y;
-          quad->az = ac->z;
-          quad->bx = bc->x;
-          quad->by = bc->y;
-          quad->bz = bc->z;
-          quad->cx = cc->x;
-          pvr_dr_commit(quad);
-          quad = (pvr_sprite_txr_t *)pvr_dr_target(dr_state);
-          pvr_sprite_txr_t *quad2ndhalf = (pvr_sprite_txr_t *)((int)quad - 32);
-          quad2ndhalf->cy = cc->y;
-          quad2ndhalf->cz = cc->z;
-          quad2ndhalf->dx = dc->x;
-          quad2ndhalf->dy = dc->y;
-          quad2ndhalf->auv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[0][0], cube_tex_coords[0][1]);
-          quad2ndhalf->buv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[2][0], cube_tex_coords[2][1]);
-          quad2ndhalf->cuv =
-              PVR_PACK_16BIT_UV(cube_tex_coords[3][0], cube_tex_coords[3][1]);
-          pvr_dr_commit(quad);
+          draw_textured_sprite(tverts, i, &dr_state);
         }
       };
     }
@@ -436,11 +423,11 @@ int main(int argc, char *argv[]) {
     return -1;
   if (!pvrtex_load("/rd/texture/pal8/dc_64sq_256colors.dt", &texture64))
     return -1;
-  if (!pvrtex_load_palette("/rd/texture/pal8/dc_64sq_256colors.dt.pal", PVR_PAL_RGB565, 256))
+  if (!pvrtex_load_palette("/rd/texture/pal8/dc_64sq_256colors.dt.pal", PVR_PAL_RGB565, 0))
     return -1;
   if (!pvrtex_load("/rd/texture/pal4/dc_32sq_16colors.dt", &texture32))
     return -1;
-  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal", PVR_PAL_RGB565, 0))
+  if (!pvrtex_load_palette("/rd/texture/pal4/dc_32sq_16colors.dt.pal", PVR_PAL_RGB565, 256))
     return -1;
   cube_reset_state();
   while (update_state()) {

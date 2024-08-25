@@ -4,8 +4,6 @@
 #include <dc/pvr.h>
 #include <errno.h>
 #include <pvrtex/file_dctex.h>
-#include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
