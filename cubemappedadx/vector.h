@@ -1,20 +1,33 @@
 /********************************************************************************************/
-/* KallistiOS Direct PVR API:2.0  Perlin 2d noise example                                   */
+/* KallistiOS Direct PVR API: Textured Cube with Perlin Noise Overlay                       */
 /********************************************************************************************/
-/********************************************************************************************/
-/* Name:     vector.h                                                                       */
-/* Title:    KallistiOS Direct PVR API:2.0  Perlin 2d noise example                         */
-/* Author:   (c)Ian Micheal                                                                 */
-/* Created:  08/12/24                                                                       */
+/* Name:     6cube2.c                                                                       */
+/* Title:    Advanced Textured Cube with Dynamic Perlin Noise Overlay                       */
+/* Author:   (c) Ian Micheal                                                                */
+/* Created:  08/05/24                                                                       */
 /*                                                                                          */
-/* Version:  1.0                                                                            */
-/* Platform: Dreamcast | KallistiOS:2.0 | KOSPVR |                                          */
+/* Version:  2.0                                                                            */
+/* Platform: Dreamcast | KallistiOS: 2.0 | KOSPVR                                           */
 /*                                                                                          */
-/* Description: perlin 2d noise example                                                     */
-/* The purpose of this example is to show the use of only the KOSPVR API to do 3D           */
-/* And commented so anyone who knows OpenGL can use the DIRECT NO LAYER KOSPVR API.         */
-/* History: version 1 - Added Perlin noise2D                                                */
-/* Borrowed from CRTC Vector fast math file and example                                     */
+/* Description:                                                                             */
+/*   - Renders a 3D cube with 6 unique PNG textures, one on each face.                      */
+/*   - Overlays a dynamically generated Perlin noise texture on the cube.                   */
+/*   - Demonstrates advanced use of the KOSPVR API for 3D rendering and texture blending.   */
+/*   - Implements interactive controls for rotation, zoom, and Perlin noise parameters.     */
+/*   - Includes ADX audio playback functionality.                                           */
+/*   - Provides a comprehensive example of 3D graphics techniques on the Dreamcast.         */
+/*                                                                                          */
+/* Features:                                                                                */
+/*   - PNG texture loading and mapping onto 3D geometry                                     */
+/*   - Real-time Perlin noise generation with adjustable parameters                         */
+/*   - Dynamic texture blending for visual effects                                          */
+/*   - Analog stick control for smooth rotation                                             */
+/*   - Trigger-based zooming functionality                                                  */
+/*   - Multiple color modes for Perlin noise overlay                                        */
+/*   - Integration of 3D graphics with audio playback                                       */
+/*                                                                                          */
+/* This example serves as an educational resource for Dreamcast developers,                 */
+/* showcasing advanced graphics techniques and interactive 3D rendering.                    */
 /********************************************************************************************/
 
 
