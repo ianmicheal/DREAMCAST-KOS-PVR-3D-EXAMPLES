@@ -36,10 +36,10 @@
 #define WIREFRAME_GRID_LINES_STEP 4
 typedef enum {
   TEXTURED_TR,
-  CUBES_CUBE,
+  CUBES_CUBE_8,
   CUBES_CUBE_MAX,
-  SPARSE_WIREFRAME,
-  DENSE_WIREFRAME,
+  WIREFRAME_EMPTY,
+  WIREFRAME_FILLED,
   MAX_RENDERMODE
 } render_mode_e;
 
@@ -49,7 +49,7 @@ static dttex_info_t texture256;
 static dttex_info_t texture64;
 static dttex_info_t texture32;
 
-static inline set_cube_transform_t(){
+static inline void set_cube_transform_t(){
   mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
@@ -121,12 +121,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     draw_line(from_v, to_v, 0, dr_state);
     draw_line(from_h, to_h, 0, dr_state);
   }
-  draw_line(min, max, 0, dr_state);  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(&hdr, &cxt);
-  hdr.argb = 0xFFFFFFFF;
-  *hdrpntr = hdr;
-  pvr_dr_commit(hdrpntr);
-
+  draw_line(min, max, 0, dr_state);
 }
 
 void render_wire_cube(void) {
@@ -159,7 +154,7 @@ void render_wire_cube(void) {
   vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
   render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[0], &dr_state);
-  if (render_mode == DENSE_WIREFRAME) {
+  if (render_mode == WIREFRAME_FILLED) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 3);
@@ -175,7 +170,7 @@ void render_wire_cube(void) {
   wiredir2.y = 0; wiredir2.z = 1;
   render_wire_grid(cube_vertices + 0, cube_vertices + 4, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[5], &dr_state);
-  if (render_mode == DENSE_WIREFRAME) {
+  if (render_mode == WIREFRAME_FILLED) {
     for (int i = 1; i < cube_state.grid_size + 1; i++) {
       vec3f_t inner_from = *(cube_vertices + 0);
       vec3f_t inner_to = *(cube_vertices + 4);
@@ -251,7 +246,6 @@ void render_txr_cube(void) {
 
 void render_cubes_cube() {
   set_cube_transform_t();
-  pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
   uint32_t cuberoot_cubes = 8;
@@ -268,14 +262,14 @@ void render_cubes_cube() {
                        texture64.width, texture64.height, texture64.ptr,
                        PVR_FILTER_BILINEAR);
   }
-  cxt.gen.culling = PVR_CULLING_CCW;
+  pvr_dr_state_t dr_state;
   pvr_dr_init(&dr_state);
-  pvr_sprite_hdr_t hdr;
-  pvr_sprite_hdr_t *hdrpntr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
-  pvr_sprite_compile(&hdr, &cxt);
-  hdr.argb = 0xFFFFFFFF;
-  *hdrpntr = hdr;
-  pvr_dr_commit(hdrpntr);
+  // pvr_sprite_hdr_t hdr;
+  pvr_sprite_hdr_t *hdr = (pvr_sprite_hdr_t *)pvr_dr_target(dr_state);
+  pvr_sprite_compile(hdr, &cxt);
+  hdr->argb = 0xFFFFFFFF;
+  // *hdrpntr = hdr;
+  pvr_dr_commit(hdr);
   vec3f_t cube_min = cube_vertices[6];
   vec3f_t cube_max = cube_vertices[3];
   vec3f_t cube_step = {
@@ -362,7 +356,7 @@ int update_state() {
       dpad_right_down = 1;
       switch (render_mode) {
       case TEXTURED_TR:
-      case CUBES_CUBE:
+      case CUBES_CUBE_8:
       case CUBES_CUBE_MAX:
         render_mode++;
         break;
@@ -464,14 +458,14 @@ int main(int argc, char *argv[]) {
       render_txr_cube();
       pvr_list_finish();
       break;
-    case DENSE_WIREFRAME:
-    case SPARSE_WIREFRAME:
+    case WIREFRAME_FILLED:
+    case WIREFRAME_EMPTY:
       pvr_list_begin(PVR_LIST_OP_POLY);
       render_wire_cube();
       pvr_list_finish();
       break;
     case CUBES_CUBE_MAX:
-    case CUBES_CUBE:
+    case CUBES_CUBE_8:
       pvr_list_begin(PVR_LIST_OP_POLY);
       render_cubes_cube();
       pvr_list_finish();
