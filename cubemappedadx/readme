@@ -33,36 +33,26 @@
 #Compiled with  -Wall -Wextra -Werror all warnings fixed.
 
 Basic Controls
-
+-----------------------------------------------
 START Button: Exit the program
 Analog Stick:
 
 X-axis: Rotate the cube horizontally
 Y-axis: Rotate the cube vertically
 Sensitivity is based on how far you push the stick
-
-
 Left Trigger (L): Zoom in
-
 The zoom speed is proportional to how hard you press
-
-
 Right Trigger (R): Zoom out
-
 The zoom speed is proportional to how hard you press
-
-
 
 Perlin Noise Controls
-
+--------------------------------------------
 D-Pad:
 
 Up: Increase Perlin noise scale (zoom in)
 Down: Decrease Perlin noise scale (zoom out)
 Left: Decrease Perlin noise persistence
 Right: Increase Perlin noise persistence
-
-
 A + X: Increase Perlin noise lacunarity
 A + Y: Decrease Perlin noise lacunarity
 B + X: Increase number of Perlin noise octaves
@@ -71,21 +61,12 @@ A + B: Toggle between color modes
 
 There are 3 color modes (0, 1, 2)
 This has a cooldown to prevent rapid switching
-
-
 X (when in metallic color mode):
-
 Increase metallic hue
-
-
 Y (when in metallic color mode):
-
 Decrease metallic hue
-
-
-
 Notes
-
+---------------------------------------------------------------------------
 The cube's rotation is smooth and continuous based on analog stick input.
 Zoom is limited between -10.0 and -0.5 units.
 Perlin noise parameters update in real-time as you adjust them.
