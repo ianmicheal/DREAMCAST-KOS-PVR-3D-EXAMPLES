@@ -30,6 +30,8 @@
 /* This example serves as an educational resource for Dreamcast developers,                 */
 /* showcasing advanced graphics techniques and interactive 3D rendering.                    */
 /********************************************************************************************/
+#Compiled with  -Wall -Wextra -Werror all warnings fixed.
+
 Basic Controls
 
 START Button: Exit the program
