@@ -165,8 +165,8 @@ void load_cube_textures() {
         if (!textures[i]) {
             printf("Failed to load texture %s.\n", texture_files[i]);
         } else {
-            printf("Loaded texture %s: %dx%d, format: %d\n", 
-                   texture_files[i], textures[i]->w, textures[i]->h, textures[i]->fmt);
+           printf("Loaded texture %s: %dx%d, format: %lu\n", 
+       texture_files[i], textures[i]->w, textures[i]->h, (unsigned long)textures[i]->fmt);
         }
     }
 }
@@ -265,9 +265,9 @@ void render_png_cube(void) {
     mat_identity();
     mat_perspective_fov(45.0f, 640.0f / 480.0f, 0.1f, 100.0f);
 
-    point_t eye = {0, 0, 0};
-    point_t center = {0, 0, -1};
-    vector_t up = {0, 1, 0};
+    point_t eye = {0, 0, 0, 1};
+    point_t center = {0, 0, -1, 1};
+    vector_t up = {0, 1, 0, 0};
     mat_lookat(&eye, &center, &up);
 
     float zoom_scale = 300.0f / (-cube_z);
@@ -337,9 +337,9 @@ void render_perlin_cube(void) {
     mat_identity();
     mat_perspective_fov(45.0f, 640.0f / 480.0f, 0.1f, 100.0f);
 
-    point_t eye = {0, 0, 0};
-    point_t center = {0, 0, -1};
-    vector_t up = {0, 1, 0};
+    point_t eye = {0, 0, 0, 1};
+    point_t center = {0, 0, -1, 1};
+    vector_t up = {0, 1, 0, 0};
     mat_lookat(&eye, &center, &up);
 
     float zoom_scale = 300.0f / (-cube_z);
@@ -414,11 +414,15 @@ void cleanup() {
 }
 
 int main(int argc, char *argv[]) {
-    pvr_init_params_t params = {
-        { PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_0 },
-        512 * 1024
-    };
-
+(void)argc;  // Suppress unused parameter warning
+(void)argv;  // Suppress unused parameter warning	
+pvr_init_params_t params = {
+    { PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_0 },
+    512 * 1024,
+    0,  // no dma_enabled
+    0, // Translucent Autosort enabled.
+    0
+};
     pvr_init(&params);
     pvr_set_bg_color(0.0f, 0.0f, 0.1f);
 
