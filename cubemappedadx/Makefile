@@ -25,7 +25,7 @@
 #/*                                                                                          */
 #/********************************************************************************************/ 
 
-KOS_CFLAGS+= -g -std=c99 
+KOS_CFLAGS+= -g -std=c99  -Wall -Wextra -Werror
 TARGET = pvrcube.elf
 OBJS =  perlin.o 6cube2.o 
 
