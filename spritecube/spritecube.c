@@ -49,7 +49,7 @@ static dttex_info_t texture256;
 static dttex_info_t texture64;
 static dttex_info_t texture32;
 
-static inline void set_cube_transform_t(){
+static inline void set_cube_transform(){
   mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
@@ -86,7 +86,7 @@ static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side, pvr_dr_s
 }
 
 void render_txr_tr_cube(void) {
-  set_cube_transform_t();
+  set_cube_transform();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
                 sizeof(vec3f_t));
@@ -112,7 +112,7 @@ void render_txr_tr_cube(void) {
 }
 
 void render_cubes_cube() {
-  set_cube_transform_t();
+  set_cube_transform();
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
   uint32_t cuberoot_cubes = 8;
@@ -251,7 +251,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
 }
 
 void render_wire_cube(void) {
-  set_cube_transform_t();
+  set_cube_transform();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8, sizeof(vec3f_t));
   pvr_dr_state_t dr_state;
