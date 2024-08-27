@@ -15,7 +15,7 @@
 #include <arch/gdb.h>
 #endif
 
-#define SUPERSAMPLING 0 // Set to 1 to enable horizontal FSAA, 0 to disable
+#define SUPERSAMPLING 1 // Set to 1 to enable horizontal FSAA, 0 to disable
 #if SUPERSAMPLING == 1
 #define XSCALE 2.0f
 #else
