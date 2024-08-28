@@ -10,7 +10,7 @@
 #include <stdio.h> /* Standard I/O library headers for input and output functions */
 #include <stdlib.h> /* Standard library headers for general-purpose functions, including abs() */
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
 #include <arch/gdb.h>
 #endif
@@ -49,7 +49,7 @@ static dttex_info_t texture256;
 static dttex_info_t texture64;
 static dttex_info_t texture32;
 
-static inline void set_cube_transform_t(){
+static inline void set_cube_transform(){
   mat_load(&stored_projection_view);
   mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
@@ -86,7 +86,7 @@ static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side, pvr_dr_s
 }
 
 void render_txr_tr_cube(void) {
-  set_cube_transform_t();
+  set_cube_transform();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
                 sizeof(vec3f_t));
@@ -112,15 +112,14 @@ void render_txr_tr_cube(void) {
 }
 
 void render_cubes_cube() {
-  set_cube_transform_t();
+  set_cube_transform();
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  uint32_t cuberoot_cubes = 7;
+  uint32_t cuberoot_cubes = 8;
   if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 15; 
+    cuberoot_cubes = 17 - SUPERSAMPLING *2.0f;
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps == 2430000 triangles pr. second
-    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled,
-    // this is left as an excercie for the reader ;)
+    // 17*17*16 cubes, or 3329280 triangles pr. second, works with FSAA disabled, set #define SUPERSAMPLING 0
     pvr_sprite_cxt_txr(
         &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
@@ -152,7 +151,8 @@ void render_cubes_cube() {
       cube_step.y * 0.75f,
       cube_step.z * 0.75f,
   };
-  for (int cx = 0; cx < cuberoot_cubes; cx++) {
+  int xiterations = cuberoot_cubes - (SUPERSAMPLING == 0 && render_mode == CUBES_CUBE_MAX ? 1:0);
+  for (int cx = 0; cx < xiterations; cx++) {
     for (int cy = 0; cy < cuberoot_cubes; cy++) {
       for (int cz = 0; cz < cuberoot_cubes; cz++) {
         if (render_mode == CUBES_CUBE_MIN) {
@@ -251,7 +251,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
 }
 
 void render_wire_cube(void) {
-  set_cube_transform_t();
+  set_cube_transform();
   vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8, sizeof(vec3f_t));
   pvr_dr_state_t dr_state;
@@ -324,8 +324,8 @@ static inline void cube_reset_state() {
   cube_state.grid_size = grid_size;
   fovy = DEFAULT_FOV;
   cube_state.pos.z = 12.0f;
-  cube_state.rot.x = F_PI / 4.0f;
-  cube_state.rot.y = F_PI / 4.0f;
+  cube_state.rot.x = 1.25f * F_PI;
+  cube_state.rot.y = 1.75f *F_PI;
   update_projection_view(fovy);
 }
 
