@@ -366,8 +366,8 @@ static inline int update_state() {
         return 0;
       }
       if (state->buttons & CONT_DPAD_RIGHT) {
-        if ((dpad_right_down & (1<<i)) == 0) {
-          dpad_right_down |= (1<<i);
+        if ((dpad_right_down & (1 << i)) == 0) {
+          dpad_right_down |= (1 << i);
           switch (render_mode) {
           case TEXTURED_TR:
           case CUBES_CUBE_MIN:
@@ -386,7 +386,7 @@ static inline int update_state() {
           }
         }
       } else {
-        dpad_right_down &= ~(1<<i);
+        dpad_right_down &= ~(1 << i);
       }
       if (abs(state->joyx) > 16)
         cube_state.pos.x +=
